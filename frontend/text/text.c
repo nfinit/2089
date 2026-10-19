@@ -1,9 +1,13 @@
 /*
  * text.c - 2089 for any terminal: plain ASCII, one line of input at a time.
  *
- * Nothing but C89 <stdio.h>: no escape codes, no raw keyboard, no colour, so
- * it works on a teletype, a VT100, a VMS console or a DOS box.  Type one or
- * more moves and press Return.
+ * Nothing but the C89 library: no escape codes, no raw keyboard, no colour,
+ * so it works on a teletype, a VT100, a VMS console or a DOS box.
+ *
+ * One line is one turn.  If a line holds several keys, the last recognised
+ * one counts, so a key mashed on the way to Return corrects the one before
+ * it.  n (new game) and q (quit) count only on a line of their own, so a
+ * slip can't end a game.
  *
  *     2089 [-c] [-s size] [-r seed] [-l savestring] [-v] [-h]
  *
@@ -141,9 +145,30 @@ static void draw(const struct t89_game *g, int compact)
 
 static void help(void)
 {
-    puts("\nmoves: w a s d (or k h j l, or 8 4 2 6); several per line are fine");
+    puts("\nmoves: w a s d (or k h j l, or 8 4 2 6), then Return");
+    puts("one move per line: if you type several keys, the last one counts");
     puts("u  undo the last move     n  new game     p  print the save string");
     puts("c  compact display on/off  ?  this help     q  quit");
+    puts("n and q work only on a line of their own; Return alone redraws the board");
+}
+
+/* The command a key stands for (w, d, s, a for moves), or 0 for none. */
+static int command(int key)
+{
+    /* Either case: Caps Lock, or a terminal with no lower case. */
+    switch (tolower(key)) {
+    case 'w': case 'k': case '8': return 'w';
+    case 'd': case 'l': case '6': return 'd';
+    case 's': case 'j': case '2': return 's';
+    case 'a': case 'h': case '4': return 'a';
+    case 'u': return 'u';
+    case 'n': return 'n';
+    case 'p': return 'p';
+    case '?': return '?';
+    case 'c': return 'c';
+    case 'q': return 'q';
+    default:  return 0;
+    }
 }
 
 int main(int argc, char **argv)
@@ -154,6 +179,7 @@ int main(int argc, char **argv)
     const char *load = 0;
     unsigned long seed = newseed(0);
     int size = T89_SIZE, i, dir, canundo = 0, over = 0, compact = 0;
+    int cmd, keys, redraw;
 
     for (i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-h") == 0)
@@ -199,52 +225,73 @@ int main(int argc, char **argv)
             goodbye(&g);
             return EXIT_SUCCESS;
         }
-        for (i = 0; line[i]; i++) {
-            /* Either case: Caps Lock, or a terminal with no lower case. */
-            switch (tolower((unsigned char) line[i])) {
-            case 'w': case 'k': case '8': dir = T89_UP; break;
-            case 'd': case 'l': case '6': dir = T89_RIGHT; break;
-            case 's': case 'j': case '2': dir = T89_DOWN; break;
-            case 'a': case 'h': case '4': dir = T89_LEFT; break;
-            case 'u':
-                if (canundo) {
-                    g = undo;
-                    canundo = over = 0;
-                } else
-                    puts("nothing to undo");
-                continue;
-            case 'n':
-                t89_new(&g, g.size, newseed(g.rng));
-                canundo = over = 0;
-                continue;
-            case 'p':
-                t89_save(&g, save, sizeof save);
-                printf("save string: %s\n", save);
-                continue;
-            case '?':
-                help();
-                continue;
-            case 'c':
-                compact = !compact;
-                continue;
-            case 'q':
+        /* The last recognised key on the line is the turn. */
+        cmd = keys = 0;
+        for (i = 0; line[i]; i++)
+            if (command((unsigned char) line[i])) {
+                cmd = command((unsigned char) line[i]);
+                keys++;
+            }
+        redraw = 0;
+        switch (cmd) {
+        case 0:                         /* Return alone (or nothing known) */
+            redraw = 1;
+            break;
+        case 'n':
+        case 'q':
+            if (keys > 1) {
+                printf("%c ignored: type it on a line of its own\n", cmd);
+                break;
+            }
+            if (cmd == 'q') {
                 goodbye(&g);
                 return EXIT_SUCCESS;
-            default:
-                continue;
             }
+            t89_new(&g, g.size, newseed(g.rng));
+            canundo = over = 0;
+            redraw = 1;
+            break;
+        case 'u':
+            if (canundo) {
+                g = undo;
+                canundo = over = 0;
+                redraw = 1;
+            } else
+                puts("nothing to undo");
+            break;
+        case 'p':
+            t89_save(&g, save, sizeof save);
+            printf("save string: %s\n", save);
+            break;
+        case '?':
+            help();
+            break;
+        case 'c':
+            compact = !compact;
+            redraw = 1;
+            break;
+        default:
+            dir = cmd == 'w' ? T89_UP : cmd == 'd' ? T89_RIGHT
+                : cmd == 's' ? T89_DOWN : T89_LEFT;
             /* Keep the undo copy only if the move changes something. */
             before = g;
             if (t89_move(&g, dir, &r)) {
                 undo = before;
                 canundo = 1;
+                redraw = 1;
                 if (r.events & T89_EV_WON)
                     printf("\n*** %lu!  You win.  Keep going if you like. ***\n",
                            t89_value(g.goal));
                 if (r.events & T89_EV_OVER)
                     over = 1;
-            }
+            } else if (over)
+                puts("no moves left: u to undo, n for a new game, q to quit");
+            else
+                puts("can't move that way");
+            break;
         }
+        if (!redraw)
+            continue;
         draw(&g, compact);
         if (over)
             puts("\nNo moves left.  u to undo, n for a new game, q to quit.");
