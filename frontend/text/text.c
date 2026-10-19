@@ -5,22 +5,45 @@
  * it works on a teletype, a VT100, a VMS console or a DOS box.  Type one or
  * more moves and press Return.
  *
- *     2089 [-s size] [-r seed] [-l savestring]
+ *     2089 [-s size] [-r seed] [-l savestring] [-v] [-h]
  *
  * Copyright (c) 2026 ict.  MIT License; see LICENSE.
  */
 
 #include <ctype.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include "../../2089.h"
+#include "2089.h"
 
-static void usage(void)
+static void usage(int status)
 {
-    puts("usage: 2089 [-s size] [-r seed] [-l savestring]");
-    exit(EXIT_FAILURE);
+    puts("usage: 2089 [-s size] [-r seed] [-l savestring] [-v] [-h]");
+    puts("  -s size        board size, 2 to 8 (default 4)");
+    puts("  -r seed        start the game from this number (same seed, same game)");
+    puts("  -l savestring  carry on a saved game");
+    puts("  -v             print the version");
+    exit(status);
+}
+
+/*
+ * A whole decimal number from min to max, or exit with the usage message.
+ * (errno catches values too big for a 32-bit long, which strtoul clamps.)
+ */
+static unsigned long number(const char *s, unsigned long min, unsigned long max)
+{
+    char *end;
+    unsigned long x;
+
+    if (*s < '0' || *s > '9')
+        usage(EXIT_FAILURE);
+    errno = 0;
+    x = strtoul(s, &end, 10);
+    if (*end != '\0' || errno == ERANGE || x < min || x > max)
+        usage(EXIT_FAILURE);
+    return x;
 }
 
 /* The tile as text: its value, or 2^n if that doesn't fit in 32 bits. */
@@ -106,16 +129,22 @@ int main(int argc, char **argv)
     int size = T89_SIZE, i, dir, canundo = 0, over = 0;
 
     for (i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-h") == 0)
+            usage(EXIT_SUCCESS);
+        if (strcmp(argv[i], "-v") == 0) {
+            printf("2089 %s\n", T89_VERSION);
+            return EXIT_SUCCESS;
+        }
         if (i + 1 >= argc)
-            usage();
+            usage(EXIT_FAILURE);
         if (strcmp(argv[i], "-s") == 0)
-            size = atoi(argv[++i]);
+            size = (int) number(argv[++i], T89_MINSIZE, T89_MAXSIZE);
         else if (strcmp(argv[i], "-r") == 0)
-            seed = strtoul(argv[++i], (char **) 0, 10);
+            seed = number(argv[++i], 0, 0xFFFFFFFFUL);
         else if (strcmp(argv[i], "-l") == 0)
             load = argv[++i];
         else
-            usage();
+            usage(EXIT_FAILURE);
     }
     if (load) {
         if (t89_load(&g, load) < 0) {

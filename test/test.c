@@ -12,8 +12,8 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "../2089.h"
-#include "../rng89.h"
+#include "2089.h"
+#include "rng89.h"
 
 /* Expected on every platform (first computed on x86_64 Linux). */
 #define GOLD_RNG   0xFDCFF979UL       /* hash of 1000 r89_next values, seed 1 */

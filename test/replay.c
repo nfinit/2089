@@ -9,7 +9,7 @@
  */
 
 #include <stdio.h>
-#include "../2089.h"
+#include "2089.h"
 
 int main(void)
 {
