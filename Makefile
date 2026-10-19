@@ -10,6 +10,7 @@ CC     = cc
 CFLAGS = -O
 
 CORE = 2089.o rng89.o
+FRONT = frontend/common.o
 
 # Sources outside the top directory include "2089.h" with no path, so that
 # every platform's build can say where it is (-I here).
@@ -22,8 +23,11 @@ all: frontend/text/2089 test/t89test test/replay
 rng89.o: rng89.c rng89.h
 	$(CC) $(CFLAGS) -c rng89.c
 
-frontend/text/2089: frontend/text/text.c 2089.h $(CORE)
-	$(CC) $(CFLAGS) -I. -o $@ frontend/text/text.c $(CORE)
+frontend/common.o: frontend/common.c frontend/common.h 2089.h
+	$(CC) $(CFLAGS) -I. -c -o $@ frontend/common.c
+
+frontend/text/2089: frontend/text/text.c frontend/common.h 2089.h $(CORE) $(FRONT)
+	$(CC) $(CFLAGS) -I. -Ifrontend -o $@ frontend/text/text.c $(FRONT) $(CORE)
 
 test/t89test: test/test.c 2089.h $(CORE)
 	$(CC) $(CFLAGS) -I. -o $@ test/test.c $(CORE)
@@ -54,10 +58,10 @@ strict:
 	@# C89 promises only 6 significant, case-blind characters in external names.
 	@d=`nm -g --defined-only /tmp/2089-strict.o /tmp/rng89-strict.o | awk 'NF == 3 {print tolower(substr($$3,1,6))}' | sort | uniq -d`; \
 	test -z "$$d" || { echo "external names clash in 6 characters: $$d"; exit 1; }
-	gcc -std=c89 -pedantic -Wall -Wextra -Werror -I. -o /tmp/2089-text frontend/text/text.c 2089.c rng89.c
+	gcc $(STRICT) -I. -Ifrontend -o /tmp/2089-text frontend/text/text.c frontend/common.c 2089.c rng89.c
 	gcc -std=c89 -pedantic -Wall -Wextra -Werror -I. -o /tmp/2089-test test/test.c 2089.c rng89.c
 	gcc -std=c89 -pedantic -Wall -Wextra -Werror -I. -o /tmp/2089-replay test/replay.c 2089.c rng89.c
 	/tmp/2089-test
 
 clean:
-	rm -f $(CORE) frontend/text/2089 test/t89test test/replay
+	rm -f $(CORE) $(FRONT) frontend/text/2089 test/t89test test/replay
