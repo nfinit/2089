@@ -25,11 +25,12 @@ compiler usually isn't on the default `PATH`:
 make CC=/usr/vac/bin/c89
 ```
 
-Without `make`, compile the core (`2089.c`, `rng89.c`) together with a frontend,
+Without `make`, compile the core (`2089.c`, `rng89.c`) and, for the text and curses
+frontends, `frontend/common.c`, together with the frontend,
 telling the compiler where `2089.h` is:
 
 ```sh
-cc -I. -o 2089 frontend/text/text.c 2089.c rng89.c
+cc -I. -Ifrontend -o 2089 frontend/text/text.c frontend/common.c 2089.c rng89.c
 ```
 
 The core needs no C library at all, so it builds for freestanding targets too. The text
