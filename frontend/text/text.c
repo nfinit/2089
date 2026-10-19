@@ -10,6 +10,7 @@
  * Copyright (c) 2026 ict.  MIT License; see LICENSE.
  */
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,6 +32,29 @@ static void tiletext(char *buf, int exp)
         sprintf(buf, "%lu", t89_value(exp));
     else
         sprintf(buf, "2^%d", exp);
+}
+
+/*
+ * A seed for a new game.  time() alone repeats within a second, so mix in
+ * clock() and salt: the RNG state of the game being replaced, which differs
+ * after every new game.  (Only C89 sources: no getpid().)
+ */
+static unsigned long newseed(unsigned long salt)
+{
+    unsigned long s = (unsigned long) time((time_t *) 0);
+
+    s ^= ((unsigned long) clock() * 0x9E3779B9UL) & 0xFFFFFFFFUL;
+    s ^= (salt * 0x85EBCA6BUL) & 0xFFFFFFFFUL;
+    return s;
+}
+
+/* Print how to resume this game. */
+static void goodbye(const struct t89_game *g)
+{
+    char save[T89_SAVELEN];
+
+    t89_save(g, save, sizeof save);
+    printf("to carry on later: 2089 -l %s\n", save);
 }
 
 static void rule(int n, int w)
@@ -74,11 +98,11 @@ static void help(void)
 
 int main(int argc, char **argv)
 {
-    struct t89_game g, undo;
+    struct t89_game g, undo, before;
     struct t89_result r;
     char line[256], save[T89_SAVELEN];
     const char *load = 0;
-    unsigned long seed = (unsigned long) time((time_t *) 0);
+    unsigned long seed = newseed(0);
     int size = T89_SIZE, i, dir, canundo = 0, over = 0;
 
     for (i = 1; i < argc; i++) {
@@ -110,10 +134,14 @@ int main(int argc, char **argv)
     for (;;) {
         printf("%s> ", over ? "game over " : "");
         fflush(stdout);
-        if (!fgets(line, sizeof line, stdin))
-            break;
+        if (!fgets(line, sizeof line, stdin)) {
+            putchar('\n');         /* end of input: still say how to resume */
+            goodbye(&g);
+            return EXIT_SUCCESS;
+        }
         for (i = 0; line[i]; i++) {
-            switch (line[i]) {
+            /* Either case: Caps Lock, or a terminal with no lower case. */
+            switch (tolower((unsigned char) line[i])) {
             case 'w': case 'k': case '8': dir = T89_UP; break;
             case 'd': case 'l': case '6': dir = T89_RIGHT; break;
             case 's': case 'j': case '2': dir = T89_DOWN; break;
@@ -126,7 +154,7 @@ int main(int argc, char **argv)
                     puts("nothing to undo");
                 continue;
             case 'n':
-                t89_new(&g, g.size, (unsigned long) time((time_t *) 0));
+                t89_new(&g, g.size, newseed(g.rng));
                 canundo = over = 0;
                 continue;
             case 'p':
@@ -137,14 +165,15 @@ int main(int argc, char **argv)
                 help();
                 continue;
             case 'q':
-                t89_save(&g, save, sizeof save);
-                printf("to carry on later: 2089 -l %s\n", save);
+                goodbye(&g);
                 return EXIT_SUCCESS;
             default:
                 continue;
             }
-            undo = g;
+            /* Keep the undo copy only if the move changes something. */
+            before = g;
             if (t89_move(&g, dir, &r)) {
+                undo = before;
                 canundo = 1;
                 if (r.events & T89_EV_WON)
                     printf("\n*** %lu!  You win.  Keep going if you like. ***\n",
@@ -157,5 +186,4 @@ int main(int argc, char **argv)
         if (over)
             puts("\nNo moves left.  u to undo, n for a new game, q to quit.");
     }
-    return EXIT_SUCCESS;
 }
