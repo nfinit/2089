@@ -8,6 +8,33 @@
 - A C89 compiler
 - Optional but recommended: POSIX (or GNU) `make`
 
+## Building
+
+On Unix-like systems:
+
+```sh
+make                # the text frontend (frontend/text/2089) and the tests
+make check          # run the tests
+```
+
+`make` uses `cc` by default; name another compiler with `CC`, e.g. on AIX, where the
+compiler usually isn't on the default `PATH`:
+
+```sh
+make CC=/usr/vac/bin/c89
+```
+
+Without `make`, compile the core (`2089.c`, `rng89.c`) together with a frontend,
+telling the compiler where `2089.h` is:
+
+```sh
+cc -I. -o 2089 frontend/text/text.c 2089.c rng89.c
+```
+
+The core needs no C library at all, so it builds for freestanding targets too. The text
+frontend needs only the standard C89 library: it works on any terminal, from a teletype
+up (`2089 -h` for options; `-c` gives a compact display for slow lines).
+
 ## Other C implementations of 2048
 
 There's much prior art inspiring 2089, which is far from the first attempt to implement this game in C, though it is perhaps the first attempt at an explicitly "universal" implementation capable of supporting multiple platforms, interfaces and compilers. A few other projects include:
