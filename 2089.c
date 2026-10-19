@@ -12,7 +12,8 @@
  * - Characters are looked up in a string, never computed ('a' + n), so the
  *   save format also works in EBCDIC, where the letters aren't contiguous.
  *
- * Copyright (c) 2026 ict.  MIT License; see LICENSE.
+ * Author: Claude Opus 5.5 (claude-opus-5-5), October 2026.
+ * MIT License; see LICENSE.
  */
 
 #include "2089.h"

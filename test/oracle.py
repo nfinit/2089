@@ -8,7 +8,8 @@ own implementation and in the C core (through the replay program), and
 compares the final save strings.  The model follows the rules in 2089.h, not
 the C code: lines are compressed and paired off front to back.
 
-Copyright (c) 2026 ict.  MIT License; see LICENSE.
+Author: Claude Opus 5.5 (claude-opus-5-5), October 2026.
+MIT License; see LICENSE.
 """
 import random
 import subprocess

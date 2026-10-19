@@ -14,7 +14,8 @@
  *
  *     2089 [-c] [-u] [-s size] [-r seed] [-l savestring] [-v] [-h]
  *
- * Copyright (c) 2026 ict.  MIT License; see LICENSE.
+ * Author: Claude Opus 5.5 (claude-opus-5-5), October 2026.
+ * MIT License; see LICENSE.
  */
 
 #include <ctype.h>

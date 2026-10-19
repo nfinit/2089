@@ -4,7 +4,8 @@
  * Every result is reduced to 32 bits with & M32, so a 64-bit long gives the
  * same numbers as a 32-bit one, and the output fits a 16-bit unsigned int.
  *
- * Copyright (c) 2026 ict.  MIT License; see LICENSE.
+ * Author: Claude Opus 5.5 (claude-opus-5-5), October 2026.
+ * MIT License; see LICENSE.
  */
 
 #include "rng89.h"

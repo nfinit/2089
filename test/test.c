@@ -7,7 +7,8 @@
  * The golden numbers pin down the RNG, spawning and the save format: any
  * platform that builds the core correctly must reproduce them exactly.
  *
- * Copyright (c) 2026 ict.  MIT License; see LICENSE.
+ * Author: Claude Opus 5.5 (claude-opus-5-5), October 2026.
+ * MIT License; see LICENSE.
  */
 
 #include <stdio.h>

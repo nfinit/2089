@@ -14,7 +14,8 @@
  * so on (11 is 2048).  Cells are kept row-major, top row first: the cell at
  * row r, column c is cell[r * size + c].
  *
- * Copyright (c) 2026 ict.  MIT License; see LICENSE.
+ * Author: Claude Opus 5.5 (claude-opus-5-5), October 2026.
+ * MIT License; see LICENSE.
  */
 
 #ifndef T89_H

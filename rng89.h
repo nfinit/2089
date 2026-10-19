@@ -20,7 +20,8 @@
  *     seed 1:          37a4 1c47 eb19 ede0 cee9 507f ...
  *     seed 0xFFFFFFFF: 5484 fd56 fe3e a944 a7e9 4afd ...
  *
- * Copyright (c) 2026 ict.  MIT License; see LICENSE.
+ * Author: Claude Opus 5.5 (claude-opus-5-5), October 2026.
+ * MIT License; see LICENSE.
  */
 
 #ifndef R89_H

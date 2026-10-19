@@ -5,7 +5,8 @@
  *     input:  size seed moves     e.g.  4 1234 udlrrd
  *     output: the save string after playing the moves (no-op moves allowed)
  *
- * Copyright (c) 2026 ict.  MIT License; see LICENSE.
+ * Author: Claude Opus 5.5 (claude-opus-5-5), October 2026.
+ * MIT License; see LICENSE.
  */
 
 #include <stdio.h>
