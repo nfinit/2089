@@ -9,7 +9,10 @@
  * it.  n (new game) and q (quit) count only on a line of their own, so a
  * slip can't end a game.
  *
- *     2089 [-c] [-s size] [-r seed] [-l savestring] [-v] [-h]
+ * Undo is off unless asked for with -u: living with a bad move is part of
+ * the game.
+ *
+ *     2089 [-c] [-u] [-s size] [-r seed] [-l savestring] [-v] [-h]
  *
  * Copyright (c) 2026 ict.  MIT License; see LICENSE.
  */
@@ -24,8 +27,9 @@
 
 static void usage(int status)
 {
-    puts("usage: 2089 [-c] [-s size] [-r seed] [-l savestring] [-v] [-h]");
+    puts("usage: 2089 [-c] [-u] [-s size] [-r seed] [-l savestring] [-v] [-h]");
     puts("  -c             compact display, for slow lines and paper terminals");
+    puts("  -u             allow undo (u takes back the last move)");
     puts("  -s size        board size, 2 to 8 (default 4)");
     puts("  -r seed        start the game from this number (same seed, same game)");
     puts("  -l savestring  carry on a saved game");
@@ -76,13 +80,21 @@ static unsigned long newseed(unsigned long salt)
     return s;
 }
 
-/* Print how to resume this game. */
-static void goodbye(const struct t89_game *g)
+/* Print how to resume this game, with the same options. */
+static void goodbye(const struct t89_game *g, int allowundo, int compact)
 {
     char save[T89_SAVELEN];
 
     t89_save(g, save, sizeof save);
-    printf("to carry on later: 2089 -l %s\n", save);
+    printf("to carry on later: 2089 %s%s-l %s\n",
+           compact ? "-c " : "", allowundo ? "-u " : "", save);
+}
+
+/* What to do when no move is left. */
+static void gameover(int allowundo)
+{
+    printf("No moves left.  %sn for a new game, q to quit.\n",
+           allowundo ? "u to undo, " : "");
 }
 
 static void rule(int n, int w)
@@ -143,11 +155,14 @@ static void draw(const struct t89_game *g, int compact)
     rule(n, w);
 }
 
-static void help(void)
+static void help(int allowundo)
 {
     puts("\nmoves: w a s d (or k h j l, or 8 4 2 6), then Return");
     puts("one move per line: if you type several keys, the last one counts");
-    puts("u  undo the last move     n  new game     p  print the save string");
+    if (allowundo)
+        puts("u  undo the last move     n  new game     p  print the save string");
+    else
+        puts("n  new game     p  print the save string     (undo is off: see -u)");
     puts("c  compact display on/off  ?  this help     q  quit");
     puts("n and q work only on a line of their own; Return alone redraws the board");
 }
@@ -178,7 +193,7 @@ int main(int argc, char **argv)
     char line[256], save[T89_SAVELEN];
     const char *load = 0;
     unsigned long seed = newseed(0);
-    int size = T89_SIZE, i, dir, canundo = 0, over = 0, compact = 0;
+    int size = T89_SIZE, i, dir, canundo = 0, over = 0, compact = 0, allowundo = 0;
     int cmd, keys, redraw;
 
     for (i = 1; i < argc; i++) {
@@ -186,6 +201,10 @@ int main(int argc, char **argv)
             usage(EXIT_SUCCESS);
         if (strcmp(argv[i], "-c") == 0) {
             compact = 1;
+            continue;
+        }
+        if (strcmp(argv[i], "-u") == 0) {
+            allowundo = 1;
             continue;
         }
         if (strcmp(argv[i], "-v") == 0) {
@@ -222,7 +241,7 @@ int main(int argc, char **argv)
         fflush(stdout);
         if (!fgets(line, sizeof line, stdin)) {
             putchar('\n');         /* end of input: still say how to resume */
-            goodbye(&g);
+            goodbye(&g, allowundo, compact);
             return EXIT_SUCCESS;
         }
         /* The last recognised key on the line is the turn. */
@@ -244,7 +263,7 @@ int main(int argc, char **argv)
                 break;
             }
             if (cmd == 'q') {
-                goodbye(&g);
+                goodbye(&g, allowundo, compact);
                 return EXIT_SUCCESS;
             }
             t89_new(&g, g.size, newseed(g.rng));
@@ -252,7 +271,9 @@ int main(int argc, char **argv)
             redraw = 1;
             break;
         case 'u':
-            if (canundo) {
+            if (!allowundo)
+                puts("undo is off: start 2089 with -u to allow it");
+            else if (canundo) {
                 g = undo;
                 canundo = over = 0;
                 redraw = 1;
@@ -264,7 +285,7 @@ int main(int argc, char **argv)
             printf("save string: %s\n", save);
             break;
         case '?':
-            help();
+            help(allowundo);
             break;
         case 'c':
             compact = !compact;
@@ -285,7 +306,7 @@ int main(int argc, char **argv)
                 if (r.events & T89_EV_OVER)
                     over = 1;
             } else if (over)
-                puts("no moves left: u to undo, n for a new game, q to quit");
+                gameover(allowundo);
             else
                 puts("can't move that way");
             break;
@@ -293,7 +314,9 @@ int main(int argc, char **argv)
         if (!redraw)
             continue;
         draw(&g, compact);
-        if (over)
-            puts("\nNo moves left.  u to undo, n for a new game, q to quit.");
+        if (over) {
+            putchar('\n');
+            gameover(allowundo);
+        }
     }
 }
