@@ -7,7 +7,8 @@
  * One line is one turn.  If a line holds several keys, the last recognised
  * one counts, so a key mashed on the way to Return corrects the one before
  * it.  n (new game) and q (quit) count only on a line of their own, so a
- * slip can't end a game.
+ * slip can't end a game.  Arrow keys work too: their escape sequences arrive
+ * in the line like any other key (no raw keyboard needed).
  *
  * Undo is off unless asked for with -u: living with a bad move is part of
  * the game.
@@ -158,7 +159,7 @@ static void draw(const struct t89_game *g, int compact)
 
 static void help(int allowundo)
 {
-    puts("\nmoves: w a s d (or k h j l, or 8 4 2 6), then Return");
+    puts("\nmoves: w a s d (or k h j l, 8 4 2 6, or the arrow keys), then Return");
     puts("one move per line: if you type several keys, the last one counts");
     if (allowundo)
         puts("u  undo the last move     n  new game     p  print the save string");
@@ -166,6 +167,37 @@ static void help(int allowundo)
         puts("n  new game     p  print the save string     (undo is off: see -u)");
     puts("c  compact display on/off  ?  this help     q  quit");
     puts("n and q work only on a line of their own; Return alone redraws the board");
+}
+
+/*
+ * The escape sequence starting at line[*i]: the move for an arrow key, or 0.
+ * Knows ESC [ A (ANSI, VT100 in cursor key mode, xterm, aixterm), ESC O A
+ * (VT100 in application mode) and ESC A (VT52), for A to D, with or without
+ * parameters (ESC [ 1 ; 2 A is shift-up on xterm).  Leaves *i on the last
+ * byte of the sequence, so that other sequences (function keys and so on)
+ * are skipped whole and their letters aren't read as keys.  ('\033' is ESC
+ * in ASCII; EBCDIC terminals don't send these sequences.)
+ */
+static int escape(const char *line, int *i)
+{
+    int j = *i + 1;
+
+    if (line[j] == '[' || line[j] == 'O')
+        j++;
+    while ((line[j] >= '0' && line[j] <= '9') || line[j] == ';')
+        j++;
+    if (line[j] == '\0' || line[j] == '\n') {
+        *i = j - 1;                     /* cut short: skip what there is */
+        return 0;
+    }
+    *i = j;
+    switch (line[j]) {
+    case 'A': return 'w';
+    case 'B': return 's';
+    case 'C': return 'd';
+    case 'D': return 'a';
+    default:  return 0;
+    }
 }
 
 /* The command a key stands for (w, d, s, a for moves), or 0 for none. */
@@ -195,7 +227,7 @@ int main(int argc, char **argv)
     const char *load = 0;
     unsigned long seed = newseed(0);
     int size = T89_SIZE, i, dir, canundo = 0, over = 0, compact = 0, allowundo = 0;
-    int cmd, keys, redraw;
+    int cmd, keys, k, redraw;
 
     for (i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-h") == 0)
@@ -247,11 +279,13 @@ int main(int argc, char **argv)
         }
         /* The last recognised key on the line is the turn. */
         cmd = keys = 0;
-        for (i = 0; line[i]; i++)
-            if (command((unsigned char) line[i])) {
-                cmd = command((unsigned char) line[i]);
+        for (i = 0; line[i]; i++) {
+            k = line[i] == '\033' ? escape(line, &i) : command((unsigned char) line[i]);
+            if (k) {
+                cmd = k;
                 keys++;
             }
+        }
         redraw = 0;
         switch (cmd) {
         case 0:                         /* Return alone (or nothing known) */
