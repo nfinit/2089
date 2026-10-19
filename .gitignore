@@ -1,3 +1,6 @@
+# Local workspace
+workspace/
+
 # Prerequisites
 *.d
 
@@ -53,3 +56,8 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+# 2089 build outputs
+frontend/text/2089
+test/t89test
+test/replay
