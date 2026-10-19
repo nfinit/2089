@@ -1,0 +1,501 @@
+/*
+ * curses.c - 2089 for full-screen terminals, through curses.
+ *
+ * Every key is a move, as in the original game.  Curses reads terminfo for
+ * the terminal's codes, so this works on a VT52 or a Wyse as well as an
+ * xterm; it uses only the X/Open curses calls that SVR4 curses (AIX, Solaris,
+ * HP-UX, IRIX), ncurses, NetBSD curses and PDCurses all have.
+ *
+ * Three display styles, chosen from what the terminal can do (c switches):
+ *   colour  tiles on coloured backgrounds, where the terminal has colour
+ *   mono    tiles in bold and reverse video
+ *   plain   numbers only, no video attributes at all: for terminals whose
+ *           attributes take up a screen cell (Wyse 50 "magic cookies"),
+ *           where reverse video would shift the board; chosen for them
+ *           automatically, and -m asks for mono anyway
+ * Box lines use the terminal's line-drawing set when terminfo has one, and
+ * + - | otherwise (or always, with -a).
+ *
+ * Rules shared with the text frontend: undo is off unless -u; quitting
+ * prints the command to carry on later.  No input is ever thrown away (keys
+ * typed ahead are played in order), nothing waits on a timer, and a lone ESC
+ * means nothing, since curses can't tell it from the start of an arrow key.
+ *
+ *     2089 [-u] [-m] [-p] [-a] [-s size] [-r seed] [-l savestring] [-v] [-h]
+ *
+ * Author: Claude Opus 5.5 (claude-opus-5-5), October 2026.
+ * MIT License; see LICENSE.
+ */
+
+/* Curses is an X/Open interface, not ISO C: ask for X/Open, or a strict C89
+   compiler (xlc's c89) hides what <curses.h> needs (termios, va_list). */
+#define _XOPEN_SOURCE
+
+#include <curses.h>
+#include <term.h>                       /* magic_cookie_glitch */
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "common.h"
+
+#define PLAIN  0
+#define MONO   1
+#define COLOUR 2
+
+static struct t89_game game;            /* the game, for the signal handler */
+static char command[256];               /* how to restart: program and options */
+static int ascii = 0, style = PLAIN, maxstyle = PLAIN;
+
+/* The board's place and shape on the screen. */
+static int top, left, cellw, cellh;     /* cell inner width and height */
+
+static void usage(const char *name, int status)
+{
+    printf("usage: %s [-u] [-m] [-p] [-a] [-s size] [-r seed] [-l savestring] [-v] [-h]\n",
+           name);
+    puts("  -m             mono: no colour, tiles in bold and reverse video");
+    puts("  -p             plain: no video attributes at all (Wyse 50 and the like)");
+    puts("  -a             draw boxes with + - | instead of line-drawing characters");
+    f89_usage();
+    puts("  -v             print the version");
+    exit(status);
+}
+
+/* Leave the screen as it was and say how to carry on. */
+static void finish(void)
+{
+    move(LINES - 1, 0);                 /* the board stays; the hint goes */
+    clrtoeol();
+    refresh();
+    endwin();
+    f89_resume(&game, command);
+}
+
+/* On a signal (interrupt, hangup), restore the terminal before leaving.
+   endwin isn't promised to be safe here, but it is what curses programs
+   have always done, and the alternative is a terminal left in raw mode. */
+static void caught(int sig)
+{
+    (void) sig;
+    finish();
+    exit(EXIT_FAILURE);
+}
+
+/* ------------------------------------------------------------ layout */
+
+/*
+ * Fit the board to the screen: cells 7 wide and 3 high if there's room,
+ * smaller if not.  Returns -1 if even the smallest board won't fit.
+ */
+static int layout(void)
+{
+    static const int shapes[][2] = { {7, 3}, {6, 1}, {5, 1}, {4, 1} };
+    int i, n = game.size, w, h;
+
+    for (i = 0; i < 4; i++) {
+        cellw = shapes[i][0];
+        cellh = shapes[i][1];
+        w = n * (cellw + 1) + 1;
+        h = n * (cellh + 1) + 1;
+        if (w <= COLS && h + 4 <= LINES) {
+            top = 2;
+            left = (COLS - w) / 2;
+            return 0;
+        }
+    }
+    return -1;
+}
+
+/* The line-drawing character, or its ASCII stand-in. */
+static chtype line(chtype acs, int plainch)
+{
+    return ascii ? (chtype) plainch : acs;
+}
+
+static void grid(void)
+{
+    int n = game.size, r, c, i, y, x;
+    chtype ch1;
+
+    for (r = 0; r <= n; r++) {
+        y = top + r * (cellh + 1);
+        for (c = 0; c <= n; c++) {
+            x = left + c * (cellw + 1);
+            if (r == 0)
+                ch1 = c == 0 ? line(ACS_ULCORNER, '+') : c == n ? line(ACS_URCORNER, '+')
+                    : line(ACS_TTEE, '+');
+            else if (r == n)
+                ch1 = c == 0 ? line(ACS_LLCORNER, '+') : c == n ? line(ACS_LRCORNER, '+')
+                    : line(ACS_BTEE, '+');
+            else
+                ch1 = c == 0 ? line(ACS_LTEE, '+') : c == n ? line(ACS_RTEE, '+')
+                    : line(ACS_PLUS, '+');
+            mvaddch(y, x, ch1);
+            if (c < n)
+                for (i = 1; i <= cellw; i++)
+                    mvaddch(y, x + i, line(ACS_HLINE, '-'));
+            if (r < n)
+                for (i = 1; i <= cellh; i++)
+                    mvaddch(y + i, x, line(ACS_VLINE, '|'));
+        }
+    }
+}
+
+/* ------------------------------------------------------------ tiles */
+
+/* Video attributes for a tile in the current style. */
+static chtype look(int exp)
+{
+    if (exp == 0 || style == PLAIN)
+        return A_NORMAL;
+    if (style == COLOUR)
+        return (chtype) COLOR_PAIR((exp - 1) % 7 + 1) | (exp >= 8 ? A_BOLD : A_NORMAL);
+    if (exp <= 2)
+        return A_NORMAL;
+    if (exp <= 6)
+        return A_BOLD;
+    if (exp <= 10)
+        return A_REVERSE;
+    return A_REVERSE | A_BOLD;
+}
+
+static void tile(int r, int c)
+{
+    char text[16];
+    int exp = game.cell[r * game.size + c], y, x, i, j, len;
+
+    f89_tile(text, exp);
+    if ((int) strlen(text) > cellw)            /* too wide: 2^n instead */
+        sprintf(text, "2^%d", exp);
+    len = (int) strlen(text);
+    y = top + r * (cellh + 1) + 1;
+    x = left + c * (cellw + 1) + 1;
+    attrset((int) look(exp));  /* X/Open attrset takes an int */
+    for (i = 0; i < cellh; i++)
+        for (j = 0; j < cellw; j++)
+            mvaddch(y + i, x + j, ' ');
+    mvaddstr(y + cellh / 2, x + (cellw - len + 1) / 2, text);
+    attrset(A_NORMAL);
+}
+
+/* ------------------------------------------------------------ screen */
+
+/* Text at (y, x), cut to fit the screen.  The last column is never used:
+   writing there on the bottom line scrolls some terminals. */
+static void put(int y, int x, const char *text)
+{
+    int room = COLS - 1 - x;
+
+    if (y < 0 || y >= LINES || room <= 0)
+        return;
+    move(y, x);
+    clrtoeol();
+    addnstr(text, room);
+}
+
+/* The same, centred. */
+static void centre(int y, const char *text)
+{
+    int x = (COLS - 1 - (int) strlen(text)) / 2;
+
+    put(y, x > 0 ? x : 0, text);
+}
+
+static void status(void)
+{
+    char best[16], text[80];
+
+    f89_tile(best, t89_best(&game));
+    sprintf(text, "2089   score %lu   moves %lu   best %s", game.score, game.moves, best);
+    centre(0, text);
+}
+
+/* A message under the board (empty to clear it). */
+static void message(const char *text)
+{
+    centre(top + game.size * (cellh + 1) + 1, text);
+}
+
+static void nomoves(int undo)
+{
+    message(undo ? "No moves left.  u to undo, n for a new game, q to quit."
+                 : "No moves left.  n for a new game, q to quit.");
+}
+
+static void hint(int undo)
+{
+    centre(LINES - 1, undo ? "arrows/wasd move  u undo  n new  p save  c style  ? help  q quit"
+                           : "arrows/wasd move  n new  p save  c style  ? help  q quit");
+}
+
+static void draw(int undo)
+{
+    int r, c;
+
+    erase();
+    status();
+    grid();
+    for (r = 0; r < game.size; r++)
+        for (c = 0; c < game.size; c++)
+            tile(r, c);
+    hint(undo);
+}
+
+/* Only what a move can change: tiles and the status line. */
+static void update(void)
+{
+    int r, c;
+
+    status();
+    for (r = 0; r < game.size; r++)
+        for (c = 0; c < game.size; c++)
+            tile(r, c);
+}
+
+static void help(int undo)
+{
+    static const char *text[] = {
+        "Slide the tiles; two equal tiles that meet join into one.",
+        "Reach 2048 to win (you can keep going), until no move is left.",
+        "",
+        "  arrow keys, w a s d, k h j l, 8 4 2 6   move",
+        "  n   new game (asks first)       p   show the save string",
+        "  c   next display style          ^L  redraw the screen",
+        "  q   quit, showing the command that carries on this game",
+        0
+    };
+    int i, y = 1, x = COLS > 72 ? (COLS - 70) / 2 : 1;
+
+    erase();
+    for (i = 0; text[i]; i++)
+        put(y++, x, text[i]);
+    put(y + 1, x, undo ? "  u   undo the last move" : "  (undo is off: start with -u to allow it)");
+    put(y + 3, x, "Press any key to go back to the game.");
+    refresh();
+    getch();
+    draw(undo);
+}
+
+/* The next style the terminal can show, after the current one. */
+static int nextstyle(void)
+{
+    return style >= maxstyle ? PLAIN : style + 1;
+}
+
+/* ------------------------------------------------------------ input */
+
+/*
+ * A key as a command.  Curses decodes arrow keys from terminfo; if the
+ * terminal sends a sequence terminfo doesn't know (a VT100 in the other
+ * cursor key mode, say), it arrives as ESC and plain bytes, and the shared
+ * parser reads it instead, so its letters aren't taken as moves.
+ */
+static int key(int k)
+{
+    char seq[16];
+    int n = 0, c, len;
+
+    switch (k) {
+    case KEY_UP:    return F89_UP;
+    case KEY_DOWN:  return F89_DOWN;
+    case KEY_RIGHT: return F89_RIGHT;
+    case KEY_LEFT:  return F89_LEFT;
+    case '\033':
+        timeout(500);                   /* the rest is already on its way */
+        while (n < (int) sizeof seq - 1 && (c = getch()) != ERR) {
+            seq[n++] = (char) c;
+            if (!(n == 1 && (c == '[' || c == 'O')) && !(c >= '0' && c <= '9')
+                && c != ';')
+                break;                  /* the final byte */
+        }
+        timeout(-1);
+        seq[n] = '\0';
+        return f89_escape(seq, &len);
+    default:
+        return k >= 0 && k < 256 ? f89_key(k) : 0;
+    }
+}
+
+/* Ask a yes/no question under the board. */
+static int ask(const char *question)
+{
+    int k;
+
+    message(question);
+    refresh();
+    k = getch();
+    message("");
+    return k == 'y' || k == 'Y';
+}
+
+/* ------------------------------------------------------------ main */
+
+/*
+ * Does the terminal store attributes in screen cells?  terminfo says so with
+ * xmc, but some entries leave it out: AIX 4.3's wy50 does, though a real
+ * Wyse 50 uses "magic cookies" (ncurses' wy50 has xmc#1).  So the Wyse 50
+ * family counts too, by name.
+ */
+static int cookies(void)
+{
+    const char *t = getenv("TERM");
+
+    if (magic_cookie_glitch > 0)
+        return 1;
+    return t && (strncmp(t, "wy50", 4) == 0 || strncmp(t, "wyse50", 6) == 0);
+}
+
+/* The styles this terminal can show; want is the one asked for (COLOUR
+   unless -m or -p), forced if it was asked for explicitly. */
+static void styles(int want, int forced)
+{
+    int i;
+    static const short bg[7] = {
+        COLOR_WHITE, COLOR_CYAN, COLOR_GREEN, COLOR_YELLOW,
+        COLOR_RED, COLOR_MAGENTA, COLOR_BLUE
+    };
+
+    maxstyle = (termattrs() & (A_REVERSE | A_BOLD)) ? MONO : PLAIN;
+    if (maxstyle == MONO && has_colors() && start_color() != ERR && COLOR_PAIRS > 7) {
+        for (i = 0; i < 7; i++)
+            init_pair((short) (i + 1), i < 4 ? COLOR_BLACK : COLOR_WHITE, bg[i]);
+        maxstyle = COLOUR;
+    }
+    /* Attributes that take up a cell would shift the board: plain, unless
+       mono was asked for by name. */
+    if (cookies() && !(forced && want == MONO))
+        maxstyle = PLAIN;
+    else if (cookies())
+        maxstyle = MONO;
+    style = want < maxstyle ? want : maxstyle;
+}
+
+int main(int argc, char **argv)
+{
+    struct t89_game undo, before;
+    struct t89_result r;
+    struct f89_options o;
+    char save[T89_SAVELEN + 32];
+    int i, k, cmd, canundo = 0, over = 0, want = COLOUR, forced = 0;
+
+    f89_defaults(&o);
+    for (i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-h") == 0)
+            usage(argv[0], EXIT_SUCCESS);
+        else if (strcmp(argv[i], "-v") == 0) {
+            printf("2089 %s (curses)\n", T89_VERSION);
+            return EXIT_SUCCESS;
+        } else if (strcmp(argv[i], "-m") == 0)
+            want = MONO, forced = 1;
+        else if (strcmp(argv[i], "-p") == 0)
+            want = PLAIN, forced = 1;
+        else if (strcmp(argv[i], "-a") == 0)
+            ascii = 1;
+        else if (f89_option(argc, argv, &i, &o) <= 0)
+            usage(argv[0], EXIT_FAILURE);
+    }
+    if (f89_start(&game, &o, argv[0]) < 0)
+        return EXIT_FAILURE;
+    sprintf(command, "%s %s%s%s%s", strlen(argv[0]) < sizeof command - 16 ? argv[0] : "2089",
+            o.undo ? "-u " : "",
+            want == MONO ? "-m " : "", want == PLAIN ? "-p " : "", ascii ? "-a " : "");
+
+    initscr();
+    cbreak();
+    noecho();
+    nonl();
+    intrflush(stdscr, FALSE);
+    keypad(stdscr, TRUE);
+    signal(SIGINT, caught);
+    signal(SIGTERM, caught);
+#ifdef SIGHUP
+    signal(SIGHUP, caught);
+#endif
+    if (layout() < 0) {
+        endwin();
+        printf("%s: the screen is too small for a %dx%d board (%d columns, %d lines)\n",
+               argv[0], game.size, game.size, COLS, LINES);
+        return EXIT_FAILURE;
+    }
+    styles(want, forced);
+    over = t89_over(&game);
+    draw(o.undo);
+    if (over)
+        nomoves(o.undo);
+
+    for (;;) {
+        refresh();
+        k = getch();
+        if (k == ERR)
+            continue;
+        if (k == '\f') {                /* ^L: lay out again and redraw */
+            clearok(curscr, TRUE);
+            if (layout() < 0) {
+                erase();
+                put(0, 0, "The screen is too small: make it bigger and press ^L.");
+                continue;
+            }
+            draw(o.undo);
+            continue;
+        }
+        cmd = key(k);
+        if (cmd != 0)
+            message("");
+        switch (cmd) {
+        case F89_QUIT:
+            finish();
+            return EXIT_SUCCESS;
+        case F89_NEW:
+            if (ask("Start a new game?  (y/n)")) {
+                t89_new(&game, game.size, f89_seed(game.rng));
+                canundo = over = 0;
+                update();
+            }
+            break;
+        case F89_UNDO:
+            if (!o.undo)
+                message("Undo is off: start with -u to allow it.");
+            else if (canundo) {
+                game = undo;
+                canundo = over = 0;
+                update();
+            } else
+                message("Nothing to undo.");
+            break;
+        case F89_SAVE:
+            strcpy(save, "Save string: ");
+            t89_save(&game, save + strlen(save), T89_SAVELEN);
+            message(save);
+            break;
+        case F89_HELP:
+            help(o.undo);
+            break;
+        case F89_DISPLAY:
+            style = nextstyle();
+            draw(o.undo);
+            message(style == COLOUR ? "Colour." : style == MONO ? "Mono." : "Plain.");
+            break;
+        case 0:
+            break;
+        default:
+            before = game;
+            if (t89_move(&game, f89_dir(cmd), &r)) {
+                undo = before;
+                canundo = 1;
+                update();
+                if (r.events & T89_EV_WON) {
+                    sprintf(save, "%lu!  You win.  Keep going if you like.",
+                            t89_value(game.goal));
+                    message(save);
+                }
+                if (r.events & T89_EV_OVER) {
+                    over = 1;
+                    nomoves(o.undo);
+                }
+            } else if (over)
+                nomoves(o.undo);                /* keep saying so */
+            break;
+        }
+    }
+}

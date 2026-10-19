@@ -14,6 +14,7 @@ On Unix-like systems:
 
 ```sh
 make                # the text frontend (frontend/text/2089) and the tests
+make curses         # the curses frontend (frontend/curses/2089)
 make check          # run the tests
 ```
 
@@ -33,7 +34,9 @@ cc -I. -o 2089 frontend/text/text.c 2089.c rng89.c
 
 The core needs no C library at all, so it builds for freestanding targets too. The text
 frontend needs only the standard C89 library: it works on any terminal, from a teletype
-up (`2089 -h` for options; `-c` gives a compact display for slow lines).
+up (`2089 -h` for options; `-c` gives a compact display for slow lines). The curses
+frontend needs an X/Open curses (SVR4 curses, ncurses, NetBSD curses, PDCurses); if the
+library isn't `-lcurses`, say so with `make curses CURSES=-lncurses`.
 
 ## Other C implementations of 2048
 

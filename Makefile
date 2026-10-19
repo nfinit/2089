@@ -1,6 +1,7 @@
 # Makefile for 2089: POSIX make, any C89 compiler.
 #
 #   make                 build the text frontend (frontend/text/2089) and the tests
+#   make curses          build the curses frontend (frontend/curses/2089)
 #   make check           run the core's tests
 #   make CC=c89 CFLAGS=-O
 #
@@ -8,6 +9,7 @@
 
 CC     = cc
 CFLAGS = -O
+CURSES = -lcurses
 
 CORE = 2089.o rng89.o
 FRONT = frontend/common.o
@@ -28,6 +30,11 @@ frontend/common.o: frontend/common.c frontend/common.h 2089.h
 
 frontend/text/2089: frontend/text/text.c frontend/common.h 2089.h $(CORE) $(FRONT)
 	$(CC) $(CFLAGS) -I. -Ifrontend -o $@ frontend/text/text.c $(FRONT) $(CORE)
+
+curses: frontend/curses/2089
+
+frontend/curses/2089: frontend/curses/curses.c frontend/common.h 2089.h $(CORE) $(FRONT)
+	$(CC) $(CFLAGS) -I. -Ifrontend -o $@ frontend/curses/curses.c $(FRONT) $(CORE) $(CURSES)
 
 test/t89test: test/test.c 2089.h $(CORE)
 	$(CC) $(CFLAGS) -I. -o $@ test/test.c $(CORE)
@@ -59,9 +66,10 @@ strict:
 	@d=`nm -g --defined-only /tmp/2089-strict.o /tmp/rng89-strict.o | awk 'NF == 3 {print tolower(substr($$3,1,6))}' | sort | uniq -d`; \
 	test -z "$$d" || { echo "external names clash in 6 characters: $$d"; exit 1; }
 	gcc $(STRICT) -I. -Ifrontend -o /tmp/2089-text frontend/text/text.c frontend/common.c 2089.c rng89.c
+	gcc $(STRICT) -I. -Ifrontend -o /tmp/2089-curses frontend/curses/curses.c frontend/common.c 2089.c rng89.c $(CURSES)
 	gcc -std=c89 -pedantic -Wall -Wextra -Werror -I. -o /tmp/2089-test test/test.c 2089.c rng89.c
 	gcc -std=c89 -pedantic -Wall -Wextra -Werror -I. -o /tmp/2089-replay test/replay.c 2089.c rng89.c
 	/tmp/2089-test
 
 clean:
-	rm -f $(CORE) $(FRONT) frontend/text/2089 test/t89test test/replay
+	rm -f $(CORE) $(FRONT) frontend/text/2089 frontend/curses/2089 test/t89test test/replay
