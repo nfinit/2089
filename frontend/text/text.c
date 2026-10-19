@@ -5,7 +5,7 @@
  * it works on a teletype, a VT100, a VMS console or a DOS box.  Type one or
  * more moves and press Return.
  *
- *     2089 [-s size] [-r seed] [-l savestring] [-v] [-h]
+ *     2089 [-c] [-s size] [-r seed] [-l savestring] [-v] [-h]
  *
  * Copyright (c) 2026 ict.  MIT License; see LICENSE.
  */
@@ -20,7 +20,8 @@
 
 static void usage(int status)
 {
-    puts("usage: 2089 [-s size] [-r seed] [-l savestring] [-v] [-h]");
+    puts("usage: 2089 [-c] [-s size] [-r seed] [-l savestring] [-v] [-h]");
+    puts("  -c             compact display, for slow lines and paper terminals");
     puts("  -s size        board size, 2 to 8 (default 4)");
     puts("  -r seed        start the game from this number (same seed, same game)");
     puts("  -l savestring  carry on a saved game");
@@ -92,11 +93,37 @@ static void rule(int n, int w)
     puts("+");
 }
 
-static void draw(const struct t89_game *g)
+/*
+ * Compact display for slow lines and paper: a status line and one line of
+ * numbers per row, "." for an empty cell.  About 110 characters for 4x4,
+ * against about 400 for the boxed board.
+ */
+static void drawcompact(const struct t89_game *g)
+{
+    char buf[16];
+    int n = g->size, r, c, w;
+
+    tiletext(buf, t89_best(g));
+    w = (int) strlen(buf) > 4 ? (int) strlen(buf) : 4;  /* steady columns */
+    printf("score %lu  moves %lu  best %s\n", g->score, g->moves, buf);
+    for (r = 0; r < n; r++) {
+        for (c = 0; c < n; c++) {
+            tiletext(buf, g->cell[r * n + c]);
+            printf(" %*s", w, buf[0] ? buf : ".");
+        }
+        putchar('\n');
+    }
+}
+
+static void draw(const struct t89_game *g, int compact)
 {
     char buf[16];
     int n = g->size, r, c, w = 4;
 
+    if (compact) {
+        drawcompact(g);
+        return;
+    }
     tiletext(buf, t89_best(g));
     if ((int) strlen(buf) > w)
         w = (int) strlen(buf);
@@ -116,7 +143,7 @@ static void help(void)
 {
     puts("\nmoves: w a s d (or k h j l, or 8 4 2 6); several per line are fine");
     puts("u  undo the last move     n  new game     p  print the save string");
-    puts("?  this help               q  quit");
+    puts("c  compact display on/off  ?  this help     q  quit");
 }
 
 int main(int argc, char **argv)
@@ -126,11 +153,15 @@ int main(int argc, char **argv)
     char line[256], save[T89_SAVELEN];
     const char *load = 0;
     unsigned long seed = newseed(0);
-    int size = T89_SIZE, i, dir, canundo = 0, over = 0;
+    int size = T89_SIZE, i, dir, canundo = 0, over = 0, compact = 0;
 
     for (i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-h") == 0)
             usage(EXIT_SUCCESS);
+        if (strcmp(argv[i], "-c") == 0) {
+            compact = 1;
+            continue;
+        }
         if (strcmp(argv[i], "-v") == 0) {
             printf("2089 %s\n", T89_VERSION);
             return EXIT_SUCCESS;
@@ -159,7 +190,7 @@ int main(int argc, char **argv)
     over = t89_over(&g);
     printf("2089 %s - join the tiles, get to %lu!  (? for help)\n",
            T89_VERSION, t89_value(g.goal));
-    draw(&g);
+    draw(&g, compact);
     for (;;) {
         printf("%s> ", over ? "game over " : "");
         fflush(stdout);
@@ -193,6 +224,9 @@ int main(int argc, char **argv)
             case '?':
                 help();
                 continue;
+            case 'c':
+                compact = !compact;
+                continue;
             case 'q':
                 goodbye(&g);
                 return EXIT_SUCCESS;
@@ -211,7 +245,7 @@ int main(int argc, char **argv)
                     over = 1;
             }
         }
-        draw(&g);
+        draw(&g, compact);
         if (over)
             puts("\nNo moves left.  u to undo, n for a new game, q to quit.");
     }
