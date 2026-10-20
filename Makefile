@@ -6,7 +6,7 @@
 #   make curses          the curses frontend, without looking first
 #   make run             build, then play: the full program if it was built,
 #                        else the text frontend (make run ARGS="-u -s 5")
-#   make check           run the core's tests
+#   make check           run the tests: the core's and the frontends' shared code
 #   make CC=c89 CFLAGS=-O
 #
 # Developer checks (gcc): make strict
@@ -40,7 +40,7 @@ all: text
 	    echo "2089:     make CURSES='-L/some/lib -lcurses'"; \
 	fi
 
-text: frontend/text/2089 test/t89test test/replay
+text: frontend/text/2089 test/t89test test/front test/replay
 
 2089.o: 2089.c 2089.h rng89.h
 	$(CC) $(CFLAGS) -c 2089.c
@@ -76,11 +76,15 @@ frontend/curses/2089: frontend/main.c frontend/curses/curses.c frontend/common.h
 test/t89test: test/test.c 2089.h $(CORE)
 	$(CC) $(CFLAGS) -I. -o $@ test/test.c $(CORE)
 
+test/front: test/front.c frontend/common.h 2089.h frontend/common.o $(CORE)
+	$(CC) $(CFLAGS) -I. -Ifrontend -o $@ test/front.c frontend/common.o $(CORE)
+
 test/replay: test/replay.c 2089.h $(CORE)
 	$(CC) $(CFLAGS) -I. -o $@ test/replay.c $(CORE)
 
-check: test/t89test
+check: test/t89test test/front
 	test/t89test
+	test/front
 
 # Slow (about a minute): compare 1000 games with an independent Python model.
 oracle: test/replay
@@ -108,7 +112,9 @@ strict:
 	    frontend/curses/curses.c frontend/text/text.c frontend/common.c 2089.c rng89.c $(CURSES)
 	gcc -std=c89 -pedantic -Wall -Wextra -Werror -I. -o /tmp/2089-test test/test.c 2089.c rng89.c
 	gcc -std=c89 -pedantic -Wall -Wextra -Werror -I. -o /tmp/2089-replay test/replay.c 2089.c rng89.c
+	gcc $(STRICT) -I. -Ifrontend -o /tmp/2089-front test/front.c frontend/common.c 2089.c rng89.c
 	/tmp/2089-test
+	/tmp/2089-front
 
 clean:
-	rm -f $(CORE) $(FRONT) frontend/text/2089 frontend/curses/2089 frontend/curses/probe test/t89test test/replay
+	rm -f $(CORE) $(FRONT) frontend/text/2089 frontend/curses/2089 frontend/curses/probe test/t89test test/front test/replay

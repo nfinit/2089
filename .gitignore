@@ -60,6 +60,7 @@ dkms.conf
 # 2089 build outputs
 frontend/text/2089
 test/t89test
+test/front
 test/replay
 frontend/curses/2089
 frontend/curses/probe
