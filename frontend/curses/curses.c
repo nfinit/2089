@@ -421,6 +421,21 @@ static void update(void)
     settle();
 }
 
+/* Lay the board out again and draw it; if it won't fit, say so (in short
+   lines: the screen is small) and return 1. */
+static int relayout(int undo)
+{
+    if (layout() < 0) {
+        erase();
+        put(0, 0, "Too small.");
+        put(1, 0, "Make it bigger");
+        put(2, 0, "and press ^L.");
+        return 1;
+    }
+    draw(undo);
+    return 0;
+}
+
 static void help(int undo)
 {
     static const char *text[] = {
@@ -658,14 +673,7 @@ int f89_screen(struct t89_game *g, const struct f89_options *op)
             continue;
         if (k == '\f') {                /* ^L: lay out again and redraw */
             clearok(curscr, TRUE);
-            cramped = layout() < 0;
-            if (cramped) {              /* short lines: the screen is small */
-                erase();
-                put(0, 0, "Too small.");
-                put(1, 0, "Make it bigger");
-                put(2, 0, "and press ^L.");
-            } else
-                draw(o.undo);
+            cramped = relayout(o.undo);
             continue;
         }
         cmd = key(k);
@@ -710,7 +718,7 @@ int f89_screen(struct t89_game *g, const struct f89_options *op)
         case F89_DISPLAY:
             if (maxstyle > PLAIN) {         /* nothing to switch to otherwise */
                 style = nextstyle();
-                draw(o.undo);
+                cramped = relayout(o.undo); /* on a slow line, cells depend on it */
             }
             break;
         case 0:
