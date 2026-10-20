@@ -67,7 +67,8 @@ static void drawcompact(const struct t89_game *g)
 
     f89_tile(buf, t89_best(g));
     w = (int) strlen(buf) > 4 ? (int) strlen(buf) : 4;  /* steady columns */
-    printf("score %lu  moves %lu  top tile %s\n", g->score, g->moves, buf);
+    printf("score %lu  moves %lu  top tile %s\n", g->score, g->moves,
+           buf[0] ? buf : "-");             /* an empty board, from -l */
     for (r = 0; r < n; r++) {
         for (c = 0; c < n; c++) {
             f89_tile(buf, g->cell[r * n + c]);
@@ -89,7 +90,8 @@ static void draw(const struct t89_game *g, int compact)
     f89_tile(buf, t89_best(g));
     if ((int) strlen(buf) > w)
         w = (int) strlen(buf);
-    printf("\nscore %lu   moves %lu   top tile %s\n\n", g->score, g->moves, buf);
+    printf("\nscore %lu   moves %lu   top tile %s\n\n", g->score, g->moves,
+           buf[0] ? buf : "-");             /* an empty board, from -l */
     for (r = 0; r < n; r++) {
         rule(n, w);
         for (c = 0; c < n; c++) {
@@ -117,14 +119,14 @@ int f89_line(struct t89_game *game, const struct f89_options *o)
 {
     struct t89_game g, undo, before;
     struct t89_result r;
-    char line[256], save[T89_SAVELEN];
+    char line[256], save[T89_SAVELEN], goal[16];
     int i, canundo = 0, over = 0, compact = o->compact;
     int cmd, keys, k, len, redraw;
 
     g = *game;
     over = t89_over(&g);
-    printf("2089 %s - join the tiles, get to %lu!  (? for help)\n",
-           T89_VERSION, t89_value(g.goal));
+    f89_tile(goal, g.goal);             /* 2^32 and up, too */
+    printf("2089 %s - join the tiles, get to %s!  (? for help)\n", T89_VERSION, goal);
     draw(&g, compact);
     for (;;) {
         printf("%s> ", over ? "game over " : "");
@@ -196,8 +198,7 @@ int f89_line(struct t89_game *game, const struct f89_options *o)
                 canundo = 1;
                 redraw = 1;
                 if (r.events & T89_EV_WON)
-                    printf("\n*** %lu!  You win.  Keep going if you like. ***\n",
-                           t89_value(g.goal));
+                    printf("\n*** %s!  You win.  Keep going if you like. ***\n", goal);
                 if (r.events & T89_EV_OVER)
                     over = 1;
             } else if (over)

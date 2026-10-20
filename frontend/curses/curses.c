@@ -722,8 +722,8 @@ int f89_screen(struct t89_game *g, const struct f89_options *op)
                 canundo = 1;
                 update();
                 if (r.events & T89_EV_WON) {
-                    sprintf(save, "%lu!  You win.  Keep going if you like.",
-                            t89_value(game.goal));
+                    f89_tile(save, game.goal);  /* 2^32 and up, too */
+                    strcat(save, "!  You win.  Keep going if you like.");
                     message(save);
                 }
                 if (r.events & T89_EV_OVER) {
