@@ -49,8 +49,8 @@ struct f89_options {
     unsigned long seed;
     const char *load;           /* save string to resume, or 0 */
     int undo;                   /* 1 if undo is allowed */
-    int line;                   /* line mode asked for (-t, or -c) */
-    int compact;                /* line mode: compact display (-c) */
+    int line;                   /* line mode asked for (-t) */
+    int compact;                /* line mode: compact display (-k) */
     int style;                  /* full screen: style asked for (-m, -p) */
     int forced;                 /* ... and it was asked for by name */
     int ascii;                  /* full screen: + - | boxes (-a) */

@@ -31,7 +31,7 @@ static void goodbye(const struct t89_game *g, const struct f89_options *o, int c
 {
     char command[16];
 
-    sprintf(command, "2089 %s%s", compact ? "-c " : o->line ? "-t " : "",
+    sprintf(command, "2089 %s%s%s", o->line ? "-t " : "", compact ? "-k " : "",
             o->undo ? "-u " : "");
     f89_resume(g, command);
 }

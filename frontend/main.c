@@ -6,7 +6,8 @@
  * linked with frontend/curses/curses.c and a curses library, it plays full
  * screen when the terminal can, and falls back to line mode when it can't:
  * output or input not a terminal, an unknown TERM, a hardcopy terminal, a
- * screen too small for the board, or -t (frontend/curses/2089).
+ * screen too small for the board, or -t (frontend/curses/2089).  -k means
+ * compact in either mode: one-line cells, or the compact line display.
  *
  * Author: Claude Opus 5.5 (claude-opus-5-5), October 2026.
  * MIT License; see LICENSE.
@@ -20,19 +21,19 @@
 static void usage(int status)
 {
 #ifdef T89_CURSES
-    puts("usage: 2089 [-t] [-c] [-m] [-p] [-a] [-k] [-K] [-u] [-s size] [-r seed]");
+    puts("usage: 2089 [-t] [-k] [-K] [-m] [-p] [-a] [-u] [-s size] [-r seed]");
     puts("            [-l savestring] [-v] [-h]");
     puts("  -t             line mode: one move per line, for any terminal");
-    puts("  -c             line mode with a compact display, for slow lines and paper");
+    puts("  -k             compact: cells one line high (the default at 4800 baud or");
+    puts("                 less in colour or mono); in line mode, the compact display");
+    puts("  -K             not compact: tall cells even on a slow line, boxed display");
     puts("  -m             mono: no colour, tiles in bold and reverse video");
     puts("  -p             plain: no video attributes at all (Wyse 50 and the like)");
     puts("  -a             draw boxes with + - | instead of line-drawing characters");
-    puts("  -k             compact board: cells one line high (the default at 4800");
-    puts("                 baud or less in colour or mono, where it sends far less)");
-    puts("  -K             tall cells where they fit, even on a slow line");
 #else
-    puts("usage: 2089 [-c] [-u] [-s size] [-r seed] [-l savestring] [-v] [-h]");
-    puts("  -c             compact display, for slow lines and paper terminals");
+    puts("usage: 2089 [-k] [-K] [-u] [-s size] [-r seed] [-l savestring] [-v] [-h]");
+    puts("  -k             compact display, for slow lines and paper terminals");
+    puts("  -K             boxed display (the default)");
 #endif
     f89_usage();
     puts("  -v             print the version");
@@ -53,11 +54,9 @@ int main(int argc, char **argv)
     for (i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-h") == 0)
             usage(EXIT_SUCCESS);
-        if (strcmp(argv[i], "-c") == 0) {
-            o.compact = 1;
-#ifdef T89_CURSES
-            o.line = 1;
-#endif
+        if (strcmp(argv[i], "-k") == 0 || strcmp(argv[i], "-K") == 0) {
+            o.compact = argv[i][1] == 'k';
+            o.cells = o.compact ? F89_CELLS_SMALL : F89_CELLS_TALL;
             continue;
         }
         if (strcmp(argv[i], "-v") == 0) {
@@ -80,10 +79,6 @@ int main(int argc, char **argv)
         }
         if (strcmp(argv[i], "-a") == 0) {
             o.ascii = 1;
-            continue;
-        }
-        if (strcmp(argv[i], "-k") == 0 || strcmp(argv[i], "-K") == 0) {
-            o.cells = argv[i][1] == 'k' ? F89_CELLS_SMALL : F89_CELLS_TALL;
             continue;
         }
 #endif

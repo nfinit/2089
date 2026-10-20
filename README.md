@@ -40,7 +40,7 @@ cc -I. -Ifrontend -DT89_CURSES -o 2089 frontend/main.c frontend/text/text.c \
 
 The core needs no C library at all, so it builds for freestanding targets too. The text
 frontend needs only the standard C89 library: it works on any terminal, from a teletype
-up (`2089 -h` for options; `-c` gives a compact display for slow lines). The full
+up (`2089 -h` for options; `-k` gives a compact display for slow lines). The full
 program plays full screen through curses, and falls back to line mode by itself when
 the terminal can't (a pipe, an unknown or hardcopy terminal, a screen too small for the
 board) or when asked with `-t`. It needs an X/Open curses (SVR4 curses, ncurses, NetBSD curses,
