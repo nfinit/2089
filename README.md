@@ -13,8 +13,8 @@
 On Unix-like systems:
 
 ```sh
-make                # the text frontend (frontend/text/2089) and the tests
-make curses         # the curses frontend (frontend/curses/2089)
+make                # both frontends (frontend/text/2089, frontend/curses/2089) and the tests
+make text           # the same without curses, for systems that lack it
 make check          # run the tests
 ```
 

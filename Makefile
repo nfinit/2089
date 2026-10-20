@@ -1,7 +1,9 @@
 # Makefile for 2089: POSIX make, any C89 compiler.
 #
-#   make                 build the text frontend (frontend/text/2089) and the tests
-#   make curses          build the curses frontend (frontend/curses/2089)
+#   make                 build both frontends (frontend/text/2089 and
+#                        frontend/curses/2089) and the tests
+#   make text            the same without curses, for systems that lack it
+#   make curses          only the curses frontend
 #   make check           run the core's tests
 #   make CC=c89 CFLAGS=-O
 #
@@ -17,7 +19,9 @@ FRONT = frontend/common.o
 # Sources outside the top directory include "2089.h" with no path, so that
 # every platform's build can say where it is (-I here).
 
-all: frontend/text/2089 test/t89test test/replay
+all: text curses
+
+text: frontend/text/2089 test/t89test test/replay
 
 2089.o: 2089.c 2089.h rng89.h
 	$(CC) $(CFLAGS) -c 2089.c
