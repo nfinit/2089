@@ -16,6 +16,7 @@ On Unix-like systems:
 make                # the text frontend and the tests, plus the full program
                     # (frontend/curses/2089) if a curses library can be found
 make text           # the text frontend and the tests only
+make run            # build, then play (make run ARGS="-u -s 5" passes options)
 make check          # run the tests
 ```
 

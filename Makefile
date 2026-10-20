@@ -4,6 +4,8 @@
 #                        curses frontend if a curses library can be found
 #   make text            the text frontend and the tests only
 #   make curses          the curses frontend, without looking first
+#   make run             build, then play: the full program if it was built,
+#                        else the text frontend (make run ARGS="-u -s 5")
 #   make check           run the core's tests
 #   make CC=c89 CFLAGS=-O
 #
@@ -58,6 +60,13 @@ frontend/text/2089: frontend/main.c frontend/common.h 2089.h $(CORE) $(FRONT)
 	$(CC) $(CFLAGS) -I. -Ifrontend -o $@ frontend/main.c $(FRONT) $(CORE)
 
 curses: frontend/curses/2089
+
+# Play whichever program was built.  "|| :" keeps make quiet when a game
+# ends with a non-zero status (an interrupt, a bad save string).
+ARGS =
+run: all
+	@if test -x frontend/curses/2089; then frontend/curses/2089 $(ARGS); \
+	else frontend/text/2089 $(ARGS); fi || :
 
 frontend/curses/2089: frontend/main.c frontend/curses/curses.c frontend/common.h 2089.h \
 		$(CORE) $(FRONT)
