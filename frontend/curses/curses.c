@@ -54,11 +54,12 @@ static int cells = F89_CELLS_AUTO;      /* cell height asked for (-k, -K) */
 
 /* The board's place and shape on the screen. */
 static int top, left, cellw, cellh;     /* cell inner width and height */
+static int below;                       /* the line under the board (messages) */
 
 /* Leave the screen as it was and say how to carry on. */
 static void finish(void)
 {
-    move(LINES - 1, 0);                 /* the board stays; the hint goes */
+    move(below + 1, 0);                 /* the board stays; the hint goes */
     clrtoeol();
     refresh();
     if (hidden)
@@ -82,7 +83,8 @@ static void caught(int sig)
 /*
  * Fit the board to the screen: cells 7 wide and 3 high if there's room,
  * smaller if not.  Lines needed: the status, the board, a message line and
- * the hint, plus a blank line under the status if there's room for it
+ * the hint (both right under the board, so a compact board leaves the rest
+ * of the screen free), plus a blank line under the status if there's room
  * (so a compact 4x4 board fits 12 lines, a VT50).  Cells are one line high
  * with -k, and by default on a line of 4800 baud or less in colour or mono,
  * where each move sends about a third as much (226 bytes against 619,
@@ -104,6 +106,7 @@ static int layout(void)
             if (w <= COLS && h + 3 + gap <= LINES) {
                 top = 1 + gap;
                 left = (COLS - w) / 2;
+                below = top + h;
                 return 0;
             }
     }
@@ -221,7 +224,7 @@ static void status(void)
 /* A message under the board (empty to clear it). */
 static void message(const char *text)
 {
-    centre(top + game.size * (cellh + 1) + 1, text);
+    centre(below, text);
 }
 
 static void nomoves(int undo)
@@ -237,7 +240,7 @@ static void hint(int undo)
 
     sprintf(text, "arrows/wasd move  %sn new  p save  %s? help  q quit",
             undo ? "u undo  " : "", maxstyle > PLAIN ? "c style  " : "");
-    centre(LINES - 1, text);
+    centre(below + 1, text);            /* under the message line */
 }
 
 /*
@@ -251,8 +254,8 @@ static void hint(int undo)
  * left streaks of tile colour on the status and message lines.  vidattr
  * changes the terminal's attributes and curses' record of them together.
  *
- * The cursor is parked in the bottom left corner, beside the centred hint,
- * rather than left wherever the last tile was drawn; where the terminal can
+ * The cursor is parked in the bottom left corner (blank: the hint is right
+ * under the board) rather than left wherever the last tile was drawn; where the terminal can
  * hide it (civis), it is hidden as well.
  */
 static void settle(void)
