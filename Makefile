@@ -1,9 +1,9 @@
 # Makefile for 2089: POSIX make, any C89 compiler.
 #
-#   make                 build both frontends (frontend/text/2089 and
-#                        frontend/curses/2089) and the tests
-#   make text            the same without curses, for systems that lack it
-#   make curses          only the curses frontend
+#   make                 build the text frontend and the tests, and the
+#                        curses frontend if a curses library can be found
+#   make text            the text frontend and the tests only
+#   make curses          the curses frontend, without looking first
 #   make check           run the core's tests
 #   make CC=c89 CFLAGS=-O
 #
@@ -19,7 +19,24 @@ FRONT = frontend/common.o
 # Sources outside the top directory include "2089.h" with no path, so that
 # every platform's build can say where it is (-I here).
 
-all: text curses
+# Look for a curses that links (CURSES first, then common alternatives),
+# then build the curses frontend with it, or say why not.  Only the probe
+# decides: errors in the curses frontend itself still stop the build.
+CANDIDATES = "$(CURSES)" "-lncurses" "-lncurses -ltinfo" "-lcurses -ltermcap"
+
+all: text
+	@lib=; tried=; for l in $(CANDIDATES); do \
+	    tried="$$tried [$$l]"; \
+	    if $(CC) $(CFLAGS) -o frontend/curses/probe frontend/curses/probe.c $$l \
+	        >/dev/null 2>&1; then lib=$$l; break; fi; \
+	done; rm -f frontend/curses/probe; \
+	if test -n "$$lib"; then \
+	    $(MAKE) CC="$(CC)" CFLAGS="$(CFLAGS)" CURSES="$$lib" curses; \
+	else \
+	    echo "2089: no curses library found; tried$$tried."; \
+	    echo "2089: built the text frontend only; for curses, name the library:"; \
+	    echo "2089:     make CURSES='-L/some/lib -lcurses'"; \
+	fi
 
 text: frontend/text/2089 test/t89test test/replay
 
@@ -76,4 +93,4 @@ strict:
 	/tmp/2089-test
 
 clean:
-	rm -f $(CORE) $(FRONT) frontend/text/2089 frontend/curses/2089 test/t89test test/replay
+	rm -f $(CORE) $(FRONT) frontend/text/2089 frontend/curses/2089 frontend/curses/probe test/t89test test/replay

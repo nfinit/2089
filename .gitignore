@@ -62,3 +62,4 @@ frontend/text/2089
 test/t89test
 test/replay
 frontend/curses/2089
+frontend/curses/probe
