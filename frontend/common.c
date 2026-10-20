@@ -47,19 +47,53 @@ int f89_intro(int ch)
     return ch == '\033' || ch == 0x9B || ch == 0x8F;
 }
 
+/*
+ * The grammar is ECMA-48's: after CSI (ESC [) or SS3 (ESC O), parameter
+ * bytes 0x30-0x3F (digits, ; and the private ? < = >), then intermediate
+ * bytes 0x20-0x2F, then the final byte; after a plain ESC, intermediates
+ * and a final byte.  Reading only digits and ; left the end of sequences
+ * such as ESC [ ? 25 h to be read as keys (h, a move).  The Linux console
+ * sends F1 to F5 as ESC [ [ A to E, with [ where a final byte would be.
+ */
+int f89_cslen(const char *s)
+{
+    const unsigned char *p = (const unsigned char *) s;
+    int j = 1, csi, ss3;
+
+    csi = p[0] == 0x9B || (p[0] == 0x1B && p[1] == '[');
+    ss3 = p[0] == 0x8F || (p[0] == 0x1B && p[1] == 'O');
+    if (p[0] == 0x1B && (csi || ss3))
+        j++;
+    if (csi && p[j] == '[')             /* Linux console F1-F5 */
+        j++;
+    else if (csi || ss3)
+        while (p[j] >= 0x30 && p[j] <= 0x3F)
+            j++;
+    while (p[j] >= 0x20 && p[j] <= 0x2F)
+        j++;
+    if (p[j] == '\0')
+        return 0;
+    if (p[j] < 0x20 || f89_intro(p[j]))
+        return j;                       /* a control or another sequence ends it */
+    return j + 1;
+}
+
 int f89_escape(const char *s, int *len)
 {
-    int j = 1;
+    int j = 1, n = f89_cslen(s);
 
+    if (n == 0) {
+        *len = (int) strlen(s);         /* cut short: skip what there is */
+        return 0;
+    }
+    *len = n;
+    /* An arrow is A to D right after the introducer and any digits and ;. */
     if ((unsigned char) s[0] == '\033' && (s[1] == '[' || s[1] == 'O'))
         j++;
     while ((s[j] >= '0' && s[j] <= '9') || s[j] == ';')
         j++;
-    if (s[j] == '\0' || s[j] == '\n') {
-        *len = j;                       /* cut short: skip what there is */
+    if (j != n - 1)
         return 0;
-    }
-    *len = j + 1;
     switch (s[j]) {
     case 'A': return F89_UP;
     case 'B': return F89_DOWN;

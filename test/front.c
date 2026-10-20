@@ -108,6 +108,54 @@ static void test_escapes(void)
     esc("\033[12\n", 0, 4);
     esc("\233", 0, 1);
     esc("\2331;2A", F89_UP, 5);
+
+    /* Whole sequences, not just their parameters (DeepSeek's review). */
+    for (i = 0; i < 5; i++) {
+        sprintf(s, "\033[[%c", "ABCDE"[i]);     /* Linux console F1-F5 */
+        esc(s, 0, 4);
+        sprintf(s, "\233[%ch", "ABCDE"[i]);
+        esc(s, 0, 3);
+    }
+    esc("\033[[", 0, 3);                        /* cut short */
+    esc("\033[?", 0, 3);
+    esc("\033[?25h", 0, 6);                     /* private parameters */
+    esc("\033[?25ld", 0, 6);
+    esc("\033[?1;2c", 0, 7);
+    esc("\033[<0;1;1M", 0, 9);
+    esc("\033[>1A", 0, 5);                      /* not an arrow */
+    esc("\033[ q", 0, 4);                       /* intermediate */
+    esc("\033[1 A", 0, 5);
+    esc("\033(B", 0, 3);                        /* ESC with intermediate */
+    esc("\033(", 0, 2);
+    esc("\033\033[A", 0, 1);                    /* another sequence ends it */
+    esc("\033[1\033[A", 0, 3);
+    esc("\033[1\233A", 0, 3);
+    esc("\033[1\rA", 0, 3);                     /* so does a control */
+    esc("\033O2A", F89_UP, 4);
+}
+
+/* f89_cslen: 0 until the sequence is complete, for reading it a byte at a time. */
+static void test_cslen(void)
+{
+    static const char *seqs[] = {
+        "\033[A", "\033OB", "\033C", "\233D", "\217A", "\033[1;2A", "\033[11~",
+        "\033[[A", "\033[?25h", "\033[<0;1;1M", "\033(B", "\033[ q", 0
+    };
+    char s[16];
+    int i, n, k, ok;
+
+    for (i = 0; seqs[i]; i++) {
+        n = (int) strlen(seqs[i]);
+        ok = 1;
+        for (k = 1; k < n; k++) {
+            memcpy(s, seqs[i], (size_t) k);
+            s[k] = '\0';
+            if (f89_cslen(s) != 0)
+                ok = 0;
+        }
+        CHECK(ok && f89_cslen(seqs[i]) == n, "f89_cslen", seqs[i] + 1);
+    }
+    CHECK(f89_cslen("\033\033") == 1 && f89_cslen("\033[1\n") == 3, "f89_cslen", "ended");
 }
 
 /* f89_option on one argument list: what it returns, how far it moves *i. */
@@ -203,6 +251,7 @@ int main(void)
     printf("2089 frontend %s tests\n", T89_VERSION);
     test_keys();
     test_escapes();
+    test_cslen();
     test_options();
     test_tiles();
     printf("%d checks, %d failed\n", checks, failures);

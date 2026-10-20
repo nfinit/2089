@@ -479,16 +479,22 @@ static int key(int k)
            CSI and SS3 aren't read here: a terminal in 8-bit mode needs an
            8-bit TERM, such as vt320-8, and then curses decodes them.) */
         seq[n++] = (char) k;
+        seq[n] = '\0';
         timeout(500);                   /* the rest is already on its way */
-        while (n < (int) sizeof seq - 1 && (c = getch()) != ERR) {
+        while (n < (int) sizeof seq - 1 && f89_cslen(seq) == 0
+               && (c = getch()) != ERR) {
+            if (c > 255 || c == 0) {    /* a key curses decoded, or NUL */
+                ungetch(c);
+                break;
+            }
             seq[n++] = (char) c;
-            if (!(n == 2 && (c == '[' || c == 'O'))
-                && !(c >= '0' && c <= '9') && c != ';')
-                break;                  /* the final byte */
+            seq[n] = '\0';
         }
         timeout(-1);
-        seq[n] = '\0';
-        return f89_escape(seq, &len);
+        k = f89_escape(seq, &len);
+        if (len < n)                    /* it ended before the last byte */
+            ungetch((unsigned char) seq[n - 1]);
+        return k;
     }
 }
 

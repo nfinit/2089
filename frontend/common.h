@@ -80,11 +80,17 @@ int f89_intro(int ch);
  * mode, xterm, aixterm), ESC O A and SS3 A (VT100 in application mode) and
  * ESC A (VT52), for A to D, with or without parameters (ESC [ 1 ; 2 A is
  * shift-up on xterm).  *len gets the number of bytes the sequence used, so
- * that other sequences (function keys and so on) can be skipped whole; a
- * sequence cut short by the end of the string or a newline uses what there
- * is.  ('\033' is ESC in ASCII; EBCDIC terminals don't send these.)
+ * that other sequences (function keys, ESC [ ? 25 h and so on) can be
+ * skipped whole; a sequence cut short by the end of the string uses what
+ * there is, and one cut short by a newline, another control character or
+ * the start of another sequence ends before it.  ('\033' is ESC in ASCII;
+ * EBCDIC terminals don't send these.)
  */
 int f89_escape(const char *s, int *len);
+
+/* The length of the sequence at s (as f89_escape counts it), or 0 if the
+   string ends before the sequence does: for reading one byte at a time. */
+int f89_cslen(const char *s);
 
 /*
  * A seed for a new game: time() mixed with clock() and salt (pass the RNG
