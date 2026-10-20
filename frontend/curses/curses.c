@@ -175,17 +175,21 @@ static void tile(int r, int c)
 
 /* ------------------------------------------------------------ screen */
 
-/* Text at (y, x), cut to fit the screen.  The last column is never used:
-   writing there on the bottom line scrolls some terminals. */
+/* Text at (y, x) on a line of its own: the whole line is cleared first, so
+   that nothing of a longer text before it is left (a centred text clears
+   from the margin, not from where it starts).  Cut to fit the screen; the
+   last column is never used, since writing there on the bottom line
+   scrolls some terminals. */
 static void put(int y, int x, const char *text)
 {
     int room = COLS - 1 - x;
 
-    if (y < 0 || y >= LINES || room <= 0)
+    if (y < 0 || y >= LINES)
         return;
-    move(y, x);
+    move(y, 0);
     clrtoeol();
-    addnstr(text, room);
+    if (room > 0)
+        mvaddnstr(y, x, text, room);
 }
 
 /* The same, centred. */
@@ -217,10 +221,14 @@ static void nomoves(int undo)
                  : "No moves left.  n for a new game, q to quit.");
 }
 
+/* The keys, at the bottom.  "c style" only where there's a style to switch to. */
 static void hint(int undo)
 {
-    centre(LINES - 1, undo ? "arrows/wasd move  u undo  n new  p save  c style  ? help  q quit"
-                           : "arrows/wasd move  n new  p save  c style  ? help  q quit");
+    char text[80];
+
+    sprintf(text, "arrows/wasd move  %sn new  p save  %s? help  q quit",
+            undo ? "u undo  " : "", maxstyle > PLAIN ? "c style  " : "");
+    centre(LINES - 1, text);
 }
 
 /*
@@ -281,8 +289,6 @@ static void help(int undo)
         "",
         "  arrow keys, w a s d, k h j l, 8 4 2 6   move",
         "  n   new game (asks first)       p   show the save string",
-        "  c   next display style          ^L  redraw the screen",
-        "  q   quit, showing the command that carries on this game",
         0
     };
     int i, y = 1, x = COLS > 72 ? (COLS - 70) / 2 : 1;
@@ -290,6 +296,9 @@ static void help(int undo)
     erase();
     for (i = 0; text[i]; i++)
         put(y++, x, text[i]);
+    put(y++, x, maxstyle > PLAIN ? "  c   next display style          ^L  redraw the screen"
+                                 : "  ^L  redraw the screen");
+    put(y++, x, "  q   quit, showing the command that carries on this game");
     put(y + 1, x, undo ? "  u   undo the last move" : "  (undo is off: start with -u to allow it)");
     put(y + 3, x, "Press any key to go back to the game.");
     refresh();
@@ -520,9 +529,10 @@ int f89_screen(struct t89_game *g, const struct f89_options *op)
             help(o.undo);
             break;
         case F89_DISPLAY:
-            style = nextstyle();
-            draw(o.undo);
-            message(style == COLOUR ? "Colour." : style == MONO ? "Mono." : "Plain.");
+            if (maxstyle > PLAIN) {         /* nothing to switch to otherwise */
+                style = nextstyle();
+                draw(o.undo);
+            }
             break;
         case 0:
             break;
