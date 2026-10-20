@@ -151,12 +151,44 @@ static void grid(void)
 /* ------------------------------------------------------------ tiles */
 
 /* Video attributes for a tile in the current style. */
+/*
+ * Tile colours, after the original game's (Cirulli's style/main.css), one
+ * row per tile from 2 to 2048 and then all larger ("super") tiles, which
+ * the original also draws alike.  Each entry is { background, text, bold }.
+ * With 256 colours, the nearest xterm-256 colour to each (by CIE76 distance;
+ * the gold tiles share, as they nearly do in the original); with 16 or 8,
+ * the original's families (beige, orange, red, gold, dark) in ANSI colours.
+ * Empty cells and the board keep the terminal's own background.
+ */
+#define TILES 12
+static const short pal256[TILES][3] = {
+    {254, 242, 0}, {187, 242, 0}, {216, 255, 0}, {209, 255, 0}, {209, 255, 0},
+    {203, 255, 0}, {222, 255, 0}, {221, 255, 0}, {221, 255, 0}, {221, 255, 0},
+    {178, 255, 0}, {237, 255, 0}
+};
+static const short pal16[TILES][3] = {
+    {15, 0, 0}, {7, 0, 0}, {3, 0, 0}, {9, 15, 0}, {1, 15, 0}, {1, 15, 1},
+    {11, 0, 0}, {11, 0, 0}, {11, 0, 0}, {11, 0, 0}, {11, 0, 1}, {0, 15, 0}
+};
+static const short pal8[TILES][3] = {
+    {COLOR_WHITE, COLOR_BLACK, 0}, {COLOR_WHITE, COLOR_BLACK, 0},
+    {COLOR_YELLOW, COLOR_BLACK, 0}, {COLOR_YELLOW, COLOR_BLACK, 0},
+    {COLOR_RED, COLOR_WHITE, 0}, {COLOR_RED, COLOR_WHITE, 1},
+    {COLOR_YELLOW, COLOR_BLACK, 0}, {COLOR_YELLOW, COLOR_BLACK, 0},
+    {COLOR_YELLOW, COLOR_BLACK, 0}, {COLOR_YELLOW, COLOR_BLACK, 0},
+    {COLOR_YELLOW, COLOR_BLACK, 1}, {COLOR_BLACK, COLOR_WHITE, 0}
+};
+static const short (*palette)[3] = pal8;    /* the one in use */
+static short tilepair[TILES];               /* its colour pair for each tile */
+
 static chtype look(int exp)
 {
+    int t = exp > TILES ? TILES - 1 : exp - 1;
+
     if (exp == 0 || style == PLAIN)
         return A_NORMAL;
     if (style == COLOUR)
-        return (chtype) COLOR_PAIR((exp - 1) % 7 + 1) | (exp >= 8 ? A_BOLD : A_NORMAL);
+        return (chtype) COLOR_PAIR(tilepair[t]) | (palette[t][2] ? A_BOLD : A_NORMAL);
     if (exp <= 2)
         return A_NORMAL;
     if (exp <= 6)
@@ -395,19 +427,41 @@ static int cookies(void)
 
 /* The styles this terminal can show; want is the one asked for (COLOUR
    unless -m or -p), forced if it was asked for explicitly. */
+/*
+ * Colour pairs for the palette in use, one for each different pair of
+ * colours (tiles with the same colours share one: 4 pairs for 8 colours,
+ * 7 for 16, 9 for 256), so that terminals with few pairs (dtterm has 8)
+ * still get colour.  Returns 0 if the terminal hasn't enough pairs.
+ */
+static int pairs(void)
+{
+    int i, j, n = 0;
+
+    for (i = 0; i < TILES; i++) {
+        for (j = 0; j < i; j++)
+            if (palette[j][0] == palette[i][0] && palette[j][1] == palette[i][1])
+                break;
+        if (j < i) {
+            tilepair[i] = tilepair[j];
+            continue;
+        }
+        if (++n >= COLOR_PAIRS)             /* pair 0 is the terminal's own */
+            return 0;
+        tilepair[i] = (short) n;
+        init_pair((short) n, palette[i][1], palette[i][0]);
+    }
+    return 1;
+}
+
 static void styles(int want, int forced)
 {
-    int i;
-    static const short bg[7] = {
-        COLOR_WHITE, COLOR_CYAN, COLOR_GREEN, COLOR_YELLOW,
-        COLOR_RED, COLOR_MAGENTA, COLOR_BLUE
-    };
-
     maxstyle = (termattrs() & (A_REVERSE | A_BOLD)) ? MONO : PLAIN;
-    if (maxstyle == MONO && has_colors() && start_color() != ERR && COLOR_PAIRS > 7) {
-        for (i = 0; i < 7; i++)
-            init_pair((short) (i + 1), i < 4 ? COLOR_BLACK : COLOR_WHITE, bg[i]);
-        maxstyle = COLOUR;
+    if (maxstyle == MONO && has_colors() && start_color() != ERR) {
+        /* As many colours as terminfo says the terminal has, and no more:
+           an 8-colour terminal only ever gets the ANSI codes. */
+        palette = COLORS >= 256 ? pal256 : COLORS >= 16 ? pal16 : pal8;
+        if (pairs())
+            maxstyle = COLOUR;
     }
     /* Attributes that take up a cell would shift the board: plain, unless
        mono was asked for by name. */
