@@ -78,13 +78,11 @@ static void readscores(void)
     struct t89_game t;
     char buf[T89_SAVELEN + 2];
     FILE *f;
-    char *nl;
 
     if (!scorefile[0] || (f = fopen(scorefile, "r")) == 0)
         return;
     while (fgets(buf, sizeof buf, f)) {
-        if ((nl = strchr(buf, '\n')) != 0)
-            *nl = '\0';
+        buf[strcspn(buf, "\r\n")] = '\0';    /* \r too: a file from DOS */
         if (t89_load(&t, buf) == 0 && t.score > recscore[t.size]) {
             recscore[t.size] = t.score;
             strcpy(record[t.size], buf);
@@ -151,7 +149,7 @@ static void finish(void)
     f89_resume(&game, command);
 }
 
-/* On a signal (interrupt, hangup), restore the terminal before leaving.
+/* On a signal (interrupt, hangup, quit), restore the terminal before leaving.
    endwin isn't promised to be safe here, but it is what curses programs
    have always done, and the alternative is a terminal left in raw mode.
    The scores are saved first, and further signals ignored: after a hangup
@@ -163,6 +161,9 @@ static void caught(int sig)
     signal(SIGTERM, SIG_IGN);
 #ifdef SIGHUP
     signal(SIGHUP, SIG_IGN);
+#endif
+#ifdef SIGQUIT
+    signal(SIGQUIT, SIG_IGN);
 #endif
     (void) sig;
     writescores();
@@ -646,6 +647,9 @@ int f89_screen(struct t89_game *g, const struct f89_options *op)
 #ifdef SIGHUP
     signal(SIGHUP, caught);
 #endif
+#ifdef SIGQUIT
+    signal(SIGQUIT, caught);            /* ^\ would leave the terminal raw */
+#endif
     styles(o.style, o.forced);          /* before layout: slow lines depend on it */
     if (layout() < 0) {
         endwin();
@@ -653,6 +657,9 @@ int f89_screen(struct t89_game *g, const struct f89_options *op)
         signal(SIGTERM, SIG_DFL);
 #ifdef SIGHUP
         signal(SIGHUP, SIG_DFL);
+#endif
+#ifdef SIGQUIT
+        signal(SIGQUIT, SIG_DFL);
 #endif
         printf("2089: the screen is too small for a %dx%d board (%d columns, %d lines):"
                " playing in line mode\n", game.size, game.size, COLS, LINES);
