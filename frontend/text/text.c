@@ -29,7 +29,7 @@
    mode was asked for, in the build that has full screen too.) */
 static void goodbye(const struct t89_game *g, const struct f89_options *o, int compact)
 {
-    char command[16];
+    char command[32];                   /* room for more options */
 
     sprintf(command, "2089 %s%s%s", o->line ? "-t " : "", compact ? "-k " : "",
             o->undo ? "-u " : "");
