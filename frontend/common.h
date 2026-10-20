@@ -35,6 +35,11 @@
 #define F89_MONO   1            /* bold and reverse video */
 #define F89_COLOUR 2
 
+/* Full screen: cell height. */
+#define F89_CELLS_AUTO  0       /* tall if there's room, compact on slow lines */
+#define F89_CELLS_SMALL 1       /* one line high (-k) */
+#define F89_CELLS_TALL  2       /* tall if there's room, whatever the line (-K) */
+
 /*
  * Options.  f89_option reads the common ones (-u -s -r -l); main.c reads
  * the ones for each mode.
@@ -49,6 +54,7 @@ struct f89_options {
     int style;                  /* full screen: style asked for (-m, -p) */
     int forced;                 /* ... and it was asked for by name */
     int ascii;                  /* full screen: + - | boxes (-a) */
+    int cells;                  /* full screen: F89_CELLS_* (-k, -K) */
 };
 
 /*

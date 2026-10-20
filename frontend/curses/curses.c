@@ -50,6 +50,7 @@ static struct t89_game game;            /* the game, for the signal handler */
 static char command[256];               /* how to restart: program and options */
 static int ascii = 0, style = PLAIN, maxstyle = PLAIN;
 static int hidden = 0;                  /* 1 once the cursor has been hidden */
+static int cells = F89_CELLS_AUTO;      /* cell height asked for (-k, -K) */
 
 /* The board's place and shape on the screen. */
 static int top, left, cellw, cellh;     /* cell inner width and height */
@@ -80,23 +81,31 @@ static void caught(int sig)
 
 /*
  * Fit the board to the screen: cells 7 wide and 3 high if there's room,
- * smaller if not.  Returns -1 if even the smallest board won't fit.
+ * smaller if not.  Lines needed: the status, the board, a message line and
+ * the hint, plus a blank line under the status if there's room for it
+ * (so a compact 4x4 board fits 12 lines, a VT50).  Cells are one line high
+ * with -k, and by default on a line of 4800 baud or less in colour or mono,
+ * where each move sends about a third as much (226 bytes against 619,
+ * measured).  Returns -1 if even the smallest board won't fit.
  */
 static int layout(void)
 {
     static const int shapes[][2] = { {7, 3}, {6, 1}, {5, 1}, {4, 1} };
-    int i, n = game.size, w, h;
+    int i, gap, n = game.size, w, h, small;
 
-    for (i = 0; i < 4; i++) {
+    small = cells == F89_CELLS_SMALL
+        || (cells == F89_CELLS_AUTO && style != PLAIN && baudrate() <= 4800);
+    for (i = small ? 1 : 0; i < 4; i++) {
         cellw = shapes[i][0];
         cellh = shapes[i][1];
         w = n * (cellw + 1) + 1;
         h = n * (cellh + 1) + 1;
-        if (w <= COLS && h + 4 <= LINES) {
-            top = 2;
-            left = (COLS - w) / 2;
-            return 0;
-        }
+        for (gap = 1; gap >= 0; gap--)
+            if (w <= COLS && h + 3 + gap <= LINES) {
+                top = 1 + gap;
+                left = (COLS - w) / 2;
+                return 0;
+            }
     }
     return -1;
 }
@@ -445,9 +454,11 @@ int f89_screen(struct t89_game *g, const struct f89_options *op)
     game = *g;
     o = *op;
     ascii = o.ascii;
-    sprintf(command, "2089 %s%s%s%s", o.undo ? "-u " : "",
+    cells = o.cells;
+    sprintf(command, "2089 %s%s%s%s%s", o.undo ? "-u " : "",
             o.forced && o.style == MONO ? "-m " : "",
-            o.forced && o.style == PLAIN ? "-p " : "", ascii ? "-a " : "");
+            o.forced && o.style == PLAIN ? "-p " : "", ascii ? "-a " : "",
+            cells == F89_CELLS_SMALL ? "-k " : cells == F89_CELLS_TALL ? "-K " : "");
 
     initscr();
     cbreak();
@@ -460,6 +471,7 @@ int f89_screen(struct t89_game *g, const struct f89_options *op)
 #ifdef SIGHUP
     signal(SIGHUP, caught);
 #endif
+    styles(o.style, o.forced);          /* before layout: slow lines depend on it */
     if (layout() < 0) {
         endwin();
         signal(SIGINT, SIG_DFL);
@@ -471,7 +483,6 @@ int f89_screen(struct t89_game *g, const struct f89_options *op)
                " playing in line mode\n", game.size, game.size, COLS, LINES);
         return -1;
     }
-    styles(o.style, o.forced);
     hidden = curs_set(0) != ERR;        /* where the terminal can (civis) */
     idcok(stdscr, FALSE);               /* no character delete: see settle */
     over = t89_over(&game);

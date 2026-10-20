@@ -99,6 +99,7 @@ void f89_defaults(struct f89_options *o)
     o->style = F89_COLOUR;
     o->forced = 0;
     o->ascii = 0;
+    o->cells = F89_CELLS_AUTO;
 }
 
 /*
