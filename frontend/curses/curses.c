@@ -49,6 +49,7 @@
 static struct t89_game game;            /* the game, for the signal handler */
 static char command[256];               /* how to restart: program and options */
 static int ascii = 0, style = PLAIN, maxstyle = PLAIN;
+static int hidden = 0;                  /* 1 once the cursor has been hidden */
 
 /* The board's place and shape on the screen. */
 static int top, left, cellw, cellh;     /* cell inner width and height */
@@ -59,6 +60,8 @@ static void finish(void)
     move(LINES - 1, 0);                 /* the board stays; the hint goes */
     clrtoeol();
     refresh();
+    if (hidden)
+        curs_set(1);
     endwin();
     f89_resume(&game, command);
 }
@@ -230,9 +233,14 @@ static void hint(int undo)
  * instead ("back colour erase"; PowerTerm does, with TERM=screen), which
  * left streaks of tile colour on the status and message lines.  vidattr
  * changes the terminal's attributes and curses' record of them together.
+ *
+ * The cursor is parked in the bottom left corner, beside the centred hint,
+ * rather than left wherever the last tile was drawn; where the terminal can
+ * hide it (civis), it is hidden as well.
  */
 static void settle(void)
 {
+    move(LINES - 1, 0);                 /* park the cursor out of the way */
     refresh();
     vidattr(A_NORMAL);
     fflush(stdout);
@@ -455,6 +463,7 @@ int f89_screen(struct t89_game *g, const struct f89_options *op)
         return -1;
     }
     styles(o.style, o.forced);
+    hidden = curs_set(0) != ERR;        /* where the terminal can (civis) */
     idcok(stdscr, FALSE);               /* no character delete: see settle */
     over = t89_over(&game);
     draw(o.undo);
@@ -462,7 +471,7 @@ int f89_screen(struct t89_game *g, const struct f89_options *op)
         nomoves(o.undo);
 
     for (;;) {
-        refresh();
+        settle();
         k = getch();
         if (k == ERR)
             continue;
