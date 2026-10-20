@@ -103,8 +103,17 @@ strict:
 	        || { nm -u /tmp/$$f-strict.o; exit 1; }; \
 	    done; \
 	done
-	@# C89 promises only 6 significant, case-blind characters in external names.
+	@# C89 promises only 6 significant, case-blind characters in external
+	@# names: the core's, and the frontends' with them.
+	for f in frontend/main frontend/common frontend/text/text frontend/curses/curses; do \
+	    gcc $(STRICT) -DT89_CURSES -I. -Ifrontend -c $$f.c -o /tmp/2089-`basename $$f`.o \
+	    || exit 1; \
+	done
 	@d=`nm -g --defined-only /tmp/2089-strict.o /tmp/rng89-strict.o | awk 'NF == 3 {print tolower(substr($$3,1,6))}' | sort | uniq -d`; \
+	test -z "$$d" || { echo "external names clash in 6 characters: $$d"; exit 1; }
+	@d=`nm -g --defined-only /tmp/2089-strict.o /tmp/rng89-strict.o /tmp/2089-main.o \
+	    /tmp/2089-common.o /tmp/2089-text.o /tmp/2089-curses.o \
+	    | awk 'NF == 3 {print tolower(substr($$3,1,6))}' | sort | uniq -d`; \
 	test -z "$$d" || { echo "external names clash in 6 characters: $$d"; exit 1; }
 	gcc $(STRICT) -I. -Ifrontend -o /tmp/2089-text frontend/main.c \
 	    frontend/text/text.c frontend/common.c 2089.c rng89.c

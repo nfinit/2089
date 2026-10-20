@@ -131,12 +131,12 @@ void f89_resume(const struct t89_game *g, const char *command);
  * f89_line (frontend/text/text.c) needs only the C89 library.  f89_screen
  * (frontend/curses/curses.c) returns -1 without playing if the board won't
  * fit the screen, so that the caller can fall back to f89_line.
- * f89_screenok says whether this terminal can play full screen at all; if
+ * f89_fsok says whether this terminal can play full screen at all; if
  * not, and there's a reason worth telling (an unknown TERM, a hardcopy
  * terminal), it puts it in why.
  */
 int f89_line(struct t89_game *g, const struct f89_options *o);
 int f89_screen(struct t89_game *g, const struct f89_options *o);
-int f89_screenok(char *why, int len);
+int f89_fsok(char *why, int len);
 
 #endif

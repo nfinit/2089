@@ -90,7 +90,7 @@ int main(int argc, char **argv)
 
 #ifdef T89_CURSES
     if (!o.line) {
-        if (f89_screenok(why, sizeof why)) {
+        if (f89_fsok(why, sizeof why)) {
             status = f89_screen(&g, &o);
             if (status >= 0)
                 return status;

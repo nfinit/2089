@@ -16,7 +16,7 @@
  * Box lines use the terminal's line-drawing set when terminfo has one, and
  * + - | otherwise (or always, with -a).
  *
- * This is full-screen mode: f89_screen, called by main.c when f89_screenok
+ * This is full-screen mode: f89_screen, called by main.c when f89_fsok
  * says the terminal can do it.
  *
  * Rules shared with line mode: undo is off unless -u; quitting
@@ -574,7 +574,7 @@ static void styles(int want, int forced)
     style = want < maxstyle ? want : maxstyle;
 }
 
-int f89_screenok(char *why, int len)
+int f89_fsok(char *why, int len)
 {
     const char *t = getenv("TERM");
     char *cup;
