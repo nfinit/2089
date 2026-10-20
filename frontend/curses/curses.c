@@ -603,6 +603,7 @@ int f89_screen(struct t89_game *g, const struct f89_options *op)
     struct f89_options o;
     char save[T89_SAVELEN + 32];
     int k, cmd, canundo = 0, over = 0;
+    int cramped = 0;                    /* 1 while the board doesn't fit */
 
     game = *g;
     o = *op;
@@ -651,15 +652,21 @@ int f89_screen(struct t89_game *g, const struct f89_options *op)
             continue;
         if (k == '\f') {                /* ^L: lay out again and redraw */
             clearok(curscr, TRUE);
-            if (layout() < 0) {
+            cramped = layout() < 0;
+            if (cramped) {              /* short lines: the screen is small */
                 erase();
-                put(0, 0, "The screen is too small: make it bigger and press ^L.");
-                continue;
-            }
-            draw(o.undo);
+                put(0, 0, "Too small.");
+                put(1, 0, "Make it bigger");
+                put(2, 0, "and press ^L.");
+            } else
+                draw(o.undo);
             continue;
         }
         cmd = key(k);
+        /* A failed layout leaves no board to draw on (and half of a new
+           shape), so only quitting works until ^L finds room. */
+        if (cramped && cmd != F89_QUIT)
+            continue;
         if (cmd != 0) {
             message("");
             settle();                   /* see settle: no stale colour */
