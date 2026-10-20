@@ -20,11 +20,10 @@ make run            # build, then play (make run ARGS="-u -s 5" passes options)
 make check          # run the tests
 ```
 
-`make` uses `cc` by default; name another compiler with `CC`, e.g. on AIX, where the
-compiler usually isn't on the default `PATH`:
+`make` uses `cc` by default; name another compiler with `CC`:
 
 ```sh
-make CC=/usr/vac/bin/c89
+make CC=c89
 ```
 
 Without `make`, compile the core (`2089.c`, `rng89.c`) with the program
