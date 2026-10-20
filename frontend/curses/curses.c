@@ -56,6 +56,87 @@ static int cells = F89_CELLS_AUTO;      /* cell height asked for (-k, -K) */
 static int top, left, cellw, cellh;     /* cell inner width and height */
 static int below;                       /* the line under the board (messages) */
 
+/* ------------------------------------------------------------ high scores */
+
+/*
+ * The best score for each board size, as the original game shows it ("best"
+ * next to the score).  Kept for the user in $HOME/.2089, or in the file
+ * T89_SCORES names at compile time: one save string per line, the game as it
+ * stood at its best score, so that a score is only what t89_load accepts
+ * (and the game can be looked at again with -l).  Lines that don't load are
+ * skipped.  Without a file, scores are kept for the session only.  Several
+ * players sharing one file would need setgid and locking: not done here.
+ */
+static char scorefile[256];             /* "" if there is none */
+static char record[T89_MAXSIZE + 1][T89_SAVELEN];
+static unsigned long recscore[T89_MAXSIZE + 1];
+static int dirty = 0;                   /* 1 if a record is not in the file */
+
+/* Read the file, keeping each record that beats the one held. */
+static void readscores(void)
+{
+    struct t89_game t;
+    char buf[T89_SAVELEN + 2];
+    FILE *f;
+    char *nl;
+
+    if (!scorefile[0] || (f = fopen(scorefile, "r")) == 0)
+        return;
+    while (fgets(buf, sizeof buf, f)) {
+        if ((nl = strchr(buf, '\n')) != 0)
+            *nl = '\0';
+        if (t89_load(&t, buf) == 0 && t.score > recscore[t.size]) {
+            recscore[t.size] = t.score;
+            strcpy(record[t.size], buf);
+        }
+    }
+    fclose(f);
+}
+
+static void openscores(void)
+{
+#ifdef T89_SCORES
+    strcpy(scorefile, T89_SCORES);
+#else
+    const char *home = getenv("HOME");
+
+    if (home && *home && strlen(home) < sizeof scorefile - 8)
+        sprintf(scorefile, "%s/.2089", home);
+#endif
+    readscores();
+}
+
+/* Write the records, after merging what another 2089 may have written
+   since.  Returns -1 if the file can't be written. */
+static int writescores(void)
+{
+    FILE *f;
+    int n, ok;
+
+    if (!dirty || !scorefile[0])
+        return 0;
+    readscores();
+    if ((f = fopen(scorefile, "w")) == 0)
+        return -1;
+    for (n = T89_MINSIZE; n <= T89_MAXSIZE; n++)
+        if (recscore[n] > 0)
+            fprintf(f, "%s\n", record[n]);
+    ok = fclose(f) == 0;
+    if (ok)
+        dirty = 0;
+    return ok ? 0 : -1;
+}
+
+/* Take the game as a record if it beats the one for its size. */
+static void note(void)
+{
+    if (game.score > recscore[game.size]
+        && t89_save(&game, record[game.size], T89_SAVELEN) > 0) {
+        recscore[game.size] = game.score;
+        dirty = 1;
+    }
+}
+
 /* Leave the screen as it was and say how to carry on. */
 static void finish(void)
 {
@@ -65,15 +146,26 @@ static void finish(void)
     if (hidden)
         curs_set(1);
     endwin();
+    if (writescores() < 0)
+        fprintf(stderr, "2089: can't save the high score in %s\n", scorefile);
     f89_resume(&game, command);
 }
 
 /* On a signal (interrupt, hangup), restore the terminal before leaving.
    endwin isn't promised to be safe here, but it is what curses programs
-   have always done, and the alternative is a terminal left in raw mode. */
+   have always done, and the alternative is a terminal left in raw mode.
+   The scores are saved first, and further signals ignored: after a hangup
+   the terminal is gone, and SVR4's signal() (AIX) resets the handler, so a
+   second signal would end the program in the middle of endwin. */
 static void caught(int sig)
 {
+    signal(SIGINT, SIG_IGN);
+    signal(SIGTERM, SIG_IGN);
+#ifdef SIGHUP
+    signal(SIGHUP, SIG_IGN);
+#endif
     (void) sig;
+    writescores();
     finish();
     exit(EXIT_FAILURE);
 }
@@ -246,10 +338,14 @@ static void centre(int y, const char *text)
 
 static void status(void)
 {
-    char best[16], text[80];
+    char text[80];
 
-    f89_tile(best, t89_best(&game));
-    sprintf(text, "2089   score %lu   moves %lu   best %s", game.score, game.moves, best);
+    note();
+    sprintf(text, "2089   score %lu   best %lu   moves %lu", game.score,
+            recscore[game.size], game.moves);
+    if ((int) strlen(text) >= COLS)     /* narrow screen: close up */
+        sprintf(text, "score %lu best %lu moves %lu", game.score,
+                recscore[game.size], game.moves);
     centre(0, text);
 }
 
@@ -542,6 +638,7 @@ int f89_screen(struct t89_game *g, const struct f89_options *op)
     }
     hidden = curs_set(0) != ERR;        /* where the terminal can (civis) */
     idcok(stdscr, FALSE);               /* no character delete: see settle */
+    openscores();
     over = t89_over(&game);
     draw(o.undo);
     if (over)
@@ -573,6 +670,7 @@ int f89_screen(struct t89_game *g, const struct f89_options *op)
             return EXIT_SUCCESS;
         case F89_NEW:
             if (ask("Start a new game?  (y/n)")) {
+                writescores();          /* if it fails, finish says so */
                 t89_new(&game, game.size, f89_seed(game.rng));
                 canundo = over = 0;
                 update();
@@ -617,6 +715,7 @@ int f89_screen(struct t89_game *g, const struct f89_options *op)
                 }
                 if (r.events & T89_EV_OVER) {
                     over = 1;
+                    writescores();
                     nomoves(o.undo);
                 }
             } else if (over)

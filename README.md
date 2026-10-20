@@ -47,6 +47,10 @@ board) or when asked with `-t`. It needs an X/Open curses (SVR4 curses, ncurses,
 PDCurses); if the library isn't found (`make` tries `-lcurses`, `-lncurses`, and those with `-ltinfo` or
 `-ltermcap`), name it: `make CURSES='-L/opt/lib -lcurses'`.
 
+Full screen, the best score for each board size is kept in `~/.2089`, as the save
+string of the game that made it (so `2089 -l` brings it back). To keep it somewhere
+else, build with `-DT89_SCORES='"/path/to/file"'`.
+
 ## Other C implementations of 2048
 
 There's much prior art inspiring 2089, which is far from the first attempt to implement this game in C, though it is perhaps the first attempt at an explicitly "universal" implementation capable of supporting multiple platforms, interfaces and compilers. A few other projects include:
