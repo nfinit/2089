@@ -721,16 +721,18 @@ int f89_screen(struct t89_game *g, const struct f89_options *op)
                 undo = before;
                 canundo = 1;
                 update();
-                if (r.events & T89_EV_WON) {
-                    f89_tile(save, game.goal);  /* 2^32 and up, too */
-                    strcat(save, "!  You win.  Keep going if you like.");
-                    message(save);
-                }
                 if (r.events & T89_EV_OVER) {
                     over = 1;
                     writescores();
-                    nomoves(o.undo);
                 }
+                if (r.events & T89_EV_WON) {
+                    f89_tile(save, game.goal);  /* 2^32 and up, too */
+                    strcat(save, !over ? "!  You win.  Keep going if you like."
+                           : o.undo ? "!  You win, and no moves are left: u undo, n new, q quit."
+                           : "!  You win, and no moves are left: n new game, q quit.");
+                    message(save);
+                } else if (over)
+                    nomoves(o.undo);
             } else if (over)
                 nomoves(o.undo);                /* keep saying so */
             break;
