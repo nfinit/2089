@@ -220,10 +220,29 @@ static void hint(int undo)
                            : "arrows/wasd move  n new  p save  c style  ? help  q quit");
 }
 
+/*
+ * Send what's been drawn, then put the terminal back in normal video.
+ *
+ * Curses leaves the terminal in whatever video attributes it used last (a
+ * tile's colour, after a board update) and then erases lines (ESC [ K) or
+ * deletes characters without resetting them, trusting terminfo that erased
+ * cells come out blank.  Many terminals fill them with the current background
+ * instead ("back colour erase"; PowerTerm does, with TERM=screen), which
+ * left streaks of tile colour on the status and message lines.  vidattr
+ * changes the terminal's attributes and curses' record of them together.
+ */
+static void settle(void)
+{
+    refresh();
+    vidattr(A_NORMAL);
+    fflush(stdout);
+}
+
 static void draw(int undo)
 {
     int r, c;
 
+    settle();                           /* erase in normal video */
     erase();
     status();
     grid();
@@ -231,6 +250,7 @@ static void draw(int undo)
         for (c = 0; c < game.size; c++)
             tile(r, c);
     hint(undo);
+    settle();
 }
 
 /* Only what a move can change: tiles and the status line. */
@@ -242,6 +262,7 @@ static void update(void)
     for (r = 0; r < game.size; r++)
         for (c = 0; c < game.size; c++)
             tile(r, c);
+    settle();
 }
 
 static void help(int undo)
@@ -434,6 +455,7 @@ int f89_screen(struct t89_game *g, const struct f89_options *op)
         return -1;
     }
     styles(o.style, o.forced);
+    idcok(stdscr, FALSE);               /* no character delete: see settle */
     over = t89_over(&game);
     draw(o.undo);
     if (over)
@@ -455,8 +477,10 @@ int f89_screen(struct t89_game *g, const struct f89_options *op)
             continue;
         }
         cmd = key(k);
-        if (cmd != 0)
+        if (cmd != 0) {
             message("");
+            settle();                   /* see settle: no stale colour */
+        }
         switch (cmd) {
         case F89_QUIT:
             finish();
