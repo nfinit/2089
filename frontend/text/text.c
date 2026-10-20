@@ -67,7 +67,7 @@ static void drawcompact(const struct t89_game *g)
 
     f89_tile(buf, t89_best(g));
     w = (int) strlen(buf) > 4 ? (int) strlen(buf) : 4;  /* steady columns */
-    printf("score %lu  moves %lu  best %s\n", g->score, g->moves, buf);
+    printf("score %lu  moves %lu  top tile %s\n", g->score, g->moves, buf);
     for (r = 0; r < n; r++) {
         for (c = 0; c < n; c++) {
             f89_tile(buf, g->cell[r * n + c]);
@@ -89,7 +89,7 @@ static void draw(const struct t89_game *g, int compact)
     f89_tile(buf, t89_best(g));
     if ((int) strlen(buf) > w)
         w = (int) strlen(buf);
-    printf("\nscore %lu   moves %lu   best %s\n\n", g->score, g->moves, buf);
+    printf("\nscore %lu   moves %lu   top tile %s\n\n", g->score, g->moves, buf);
     for (r = 0; r < n; r++) {
         rule(n, w);
         for (c = 0; c < n; c++) {
