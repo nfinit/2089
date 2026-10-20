@@ -279,9 +279,8 @@ static int nextstyle(void)
 /*
  * A key as a command.  Curses decodes arrow keys from terminfo; if the
  * terminal sends a sequence terminfo doesn't know (a VT100 in the other
- * cursor key mode, or a VT420 sending 8-bit CSI with TERM=vt420), it arrives
- * as ESC or CSI and plain bytes, and the shared parser reads it instead, so
- * its letters aren't taken as moves.
+ * cursor key mode, say), it arrives as ESC and plain bytes, and the shared
+ * parser reads it instead, so its letters aren't taken as moves.
  */
 static int key(int k)
 {
@@ -296,14 +295,16 @@ static int key(int k)
     default:
         if (k < 0 || k > 255)
             return 0;
-        if (!f89_intro(k))
+        if (k != '\033')
             return f89_key(k);
-        /* ESC, CSI or SS3 that terminfo didn't know: read the rest. */
+        /* An ESC sequence that terminfo didn't know: read the rest.  (8-bit
+           CSI and SS3 aren't read here: a terminal in 8-bit mode needs an
+           8-bit TERM, such as vt320-8, and then curses decodes them.) */
         seq[n++] = (char) k;
         timeout(500);                   /* the rest is already on its way */
         while (n < (int) sizeof seq - 1 && (c = getch()) != ERR) {
             seq[n++] = (char) c;
-            if (!(n == 2 && k == '\033' && (c == '[' || c == 'O'))
+            if (!(n == 2 && (c == '[' || c == 'O'))
                 && !(c >= '0' && c <= '9') && c != ';')
                 break;                  /* the final byte */
         }
