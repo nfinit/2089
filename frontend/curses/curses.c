@@ -279,8 +279,9 @@ static int nextstyle(void)
 /*
  * A key as a command.  Curses decodes arrow keys from terminfo; if the
  * terminal sends a sequence terminfo doesn't know (a VT100 in the other
- * cursor key mode, say), it arrives as ESC and plain bytes, and the shared
- * parser reads it instead, so its letters aren't taken as moves.
+ * cursor key mode, or a VT420 sending 8-bit CSI with TERM=vt420), it arrives
+ * as ESC or CSI and plain bytes, and the shared parser reads it instead, so
+ * its letters aren't taken as moves.
  */
 static int key(int k)
 {
@@ -292,19 +293,23 @@ static int key(int k)
     case KEY_DOWN:  return F89_DOWN;
     case KEY_RIGHT: return F89_RIGHT;
     case KEY_LEFT:  return F89_LEFT;
-    case '\033':
+    default:
+        if (k < 0 || k > 255)
+            return 0;
+        if (!f89_intro(k))
+            return f89_key(k);
+        /* ESC, CSI or SS3 that terminfo didn't know: read the rest. */
+        seq[n++] = (char) k;
         timeout(500);                   /* the rest is already on its way */
         while (n < (int) sizeof seq - 1 && (c = getch()) != ERR) {
             seq[n++] = (char) c;
-            if (!(n == 1 && (c == '[' || c == 'O')) && !(c >= '0' && c <= '9')
-                && c != ';')
+            if (!(n == 2 && k == '\033' && (c == '[' || c == 'O'))
+                && !(c >= '0' && c <= '9') && c != ';')
                 break;                  /* the final byte */
         }
         timeout(-1);
         seq[n] = '\0';
         return f89_escape(seq, &len);
-    default:
-        return k >= 0 && k < 256 ? f89_key(k) : 0;
     }
 }
 

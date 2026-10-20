@@ -42,11 +42,16 @@ int f89_dir(int cmd)
     }
 }
 
+int f89_intro(int ch)
+{
+    return ch == '\033' || ch == 0x9B || ch == 0x8F;
+}
+
 int f89_escape(const char *s, int *len)
 {
-    int j = 0;
+    int j = 1;
 
-    if (s[j] == '[' || s[j] == 'O')
+    if ((unsigned char) s[0] == '\033' && (s[1] == '[' || s[1] == 'O'))
         j++;
     while ((s[j] >= '0' && s[j] <= '9') || s[j] == ';')
         j++;

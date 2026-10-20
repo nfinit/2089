@@ -62,14 +62,21 @@ int f89_key(int ch);
 int f89_dir(int cmd);
 
 /*
- * An escape sequence, given the bytes after its ESC: the move for an arrow
- * key, or 0.  Knows ESC [ A (ANSI, VT100 in cursor key mode, xterm, aixterm),
- * ESC O A (VT100 in application mode) and ESC A (VT52), for A to D, with or
- * without parameters (ESC [ 1 ; 2 A is shift-up on xterm).  *len gets the
- * number of bytes the sequence used after the ESC, so that other sequences
- * (function keys and so on) can be skipped whole; a sequence cut short by
- * the end of the string or a newline uses what there is.  ('\033' is ESC
- * in ASCII; EBCDIC terminals don't send these sequences.)
+ * Does ch (as an unsigned char) start a control sequence: ESC, or the 8-bit
+ * CSI (0x9B, the same as ESC [) or SS3 (0x8F, ESC O) that VT220s and later
+ * send in 8-bit mode?
+ */
+int f89_intro(int ch);
+
+/*
+ * A control sequence starting at s (with its ESC, CSI or SS3): the move for
+ * an arrow key, or 0.  Knows ESC [ A and CSI A (ANSI, VT100 in cursor key
+ * mode, xterm, aixterm), ESC O A and SS3 A (VT100 in application mode) and
+ * ESC A (VT52), for A to D, with or without parameters (ESC [ 1 ; 2 A is
+ * shift-up on xterm).  *len gets the number of bytes the sequence used, so
+ * that other sequences (function keys and so on) can be skipped whole; a
+ * sequence cut short by the end of the string or a newline uses what there
+ * is.  ('\033' is ESC in ASCII; EBCDIC terminals don't send these.)
  */
 int f89_escape(const char *s, int *len);
 

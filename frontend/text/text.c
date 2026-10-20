@@ -137,9 +137,9 @@ int f89_line(struct t89_game *game, const struct f89_options *o)
         /* The last recognised key on the line is the turn. */
         cmd = keys = 0;
         for (i = 0; line[i]; i++) {
-            if (line[i] == '\033') {
-                k = f89_escape(line + i + 1, &len);
-                i += len;
+            if (f89_intro((unsigned char) line[i])) {
+                k = f89_escape(line + i, &len);
+                i += len - 1;
             } else
                 k = f89_key((unsigned char) line[i]);
             if (k) {
