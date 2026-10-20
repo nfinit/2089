@@ -14,7 +14,7 @@
  * the game.  Keys, arrow sequences and options come from ../common.c, shared
  * with the other frontends.
  *
- *     2089 [-c] [-u] [-s size] [-r seed] [-l savestring] [-v] [-h]
+ * This is line mode: f89_line.  main.c gives it its options and its game.
  *
  * Author: Claude Opus 5.5 (claude-opus-5-5), October 2026.
  * MIT License; see LICENSE.
@@ -25,21 +25,14 @@
 #include <string.h>
 #include "common.h"
 
-static void usage(int status)
-{
-    puts("usage: 2089 [-c] [-u] [-s size] [-r seed] [-l savestring] [-v] [-h]");
-    puts("  -c             compact display, for slow lines and paper terminals");
-    f89_usage();
-    puts("  -v             print the version");
-    exit(status);
-}
-
-/* Print how to resume this game, with the same options. */
-static void goodbye(const struct t89_game *g, int allowundo, int compact)
+/* Print how to resume this game, with the same options.  (-t only if line
+   mode was asked for, in the build that has full screen too.) */
+static void goodbye(const struct t89_game *g, const struct f89_options *o, int compact)
 {
     char command[16];
 
-    sprintf(command, "2089 %s%s", compact ? "-c " : "", allowundo ? "-u " : "");
+    sprintf(command, "2089 %s%s", compact ? "-c " : o->line ? "-t " : "",
+            o->undo ? "-u " : "");
     f89_resume(g, command);
 }
 
@@ -120,33 +113,15 @@ static void help(int allowundo)
     puts("n and q work only on a line of their own; Return alone redraws the board");
 }
 
-int main(int argc, char **argv)
+int f89_line(struct t89_game *game, const struct f89_options *o)
 {
     struct t89_game g, undo, before;
     struct t89_result r;
-    struct f89_options o;
     char line[256], save[T89_SAVELEN];
-    int i, canundo = 0, over = 0, compact = 0;
+    int i, canundo = 0, over = 0, compact = o->compact;
     int cmd, keys, k, len, redraw;
 
-    f89_defaults(&o);
-    for (i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "-h") == 0)
-            usage(EXIT_SUCCESS);
-        if (strcmp(argv[i], "-c") == 0) {
-            compact = 1;
-            continue;
-        }
-        if (strcmp(argv[i], "-v") == 0) {
-            printf("2089 %s\n", T89_VERSION);
-            return EXIT_SUCCESS;
-        }
-        if (f89_option(argc, argv, &i, &o) <= 0)
-            usage(EXIT_FAILURE);
-    }
-    if (f89_start(&g, &o, "2089") < 0)
-        return EXIT_FAILURE;
-
+    g = *game;
     over = t89_over(&g);
     printf("2089 %s - join the tiles, get to %lu!  (? for help)\n",
            T89_VERSION, t89_value(g.goal));
@@ -156,7 +131,7 @@ int main(int argc, char **argv)
         fflush(stdout);
         if (!fgets(line, sizeof line, stdin)) {
             putchar('\n');         /* end of input: still say how to resume */
-            goodbye(&g, o.undo, compact);
+            goodbye(&g, o, compact);
             return EXIT_SUCCESS;
         }
         /* The last recognised key on the line is the turn. */
@@ -185,7 +160,7 @@ int main(int argc, char **argv)
                 break;
             }
             if (cmd == F89_QUIT) {
-                goodbye(&g, o.undo, compact);
+                goodbye(&g, o, compact);
                 return EXIT_SUCCESS;
             }
             t89_new(&g, g.size, f89_seed(g.rng));
@@ -193,7 +168,7 @@ int main(int argc, char **argv)
             redraw = 1;
             break;
         case F89_UNDO:
-            if (!o.undo)
+            if (!o->undo)
                 puts("undo is off: start 2089 with -u to allow it");
             else if (canundo) {
                 g = undo;
@@ -207,7 +182,7 @@ int main(int argc, char **argv)
             printf("save string: %s\n", save);
             break;
         case F89_HELP:
-            help(o.undo);
+            help(o->undo);
             break;
         case F89_DISPLAY:
             compact = !compact;
@@ -226,7 +201,7 @@ int main(int argc, char **argv)
                 if (r.events & T89_EV_OVER)
                     over = 1;
             } else if (over)
-                gameover(o.undo);
+                gameover(o->undo);
             else
                 puts("can't move that way");
             break;
@@ -236,7 +211,7 @@ int main(int argc, char **argv)
         draw(&g, compact);
         if (over) {
             putchar('\n');
-            gameover(o.undo);
+            gameover(o->undo);
         }
     }
 }

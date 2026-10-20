@@ -89,6 +89,11 @@ void f89_defaults(struct f89_options *o)
     o->seed = f89_seed(0);
     o->load = 0;
     o->undo = 0;
+    o->line = 0;
+    o->compact = 0;
+    o->style = F89_COLOUR;
+    o->forced = 0;
+    o->ascii = 0;
 }
 
 /*

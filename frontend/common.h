@@ -30,12 +30,25 @@
 #define F89_DISPLAY 9           /* switch display style */
 #define F89_QUIT    10
 
-/* Options every frontend takes: -u, -s size, -r seed, -l savestring. */
+/* Display styles for full-screen play. */
+#define F89_PLAIN  0            /* no video attributes */
+#define F89_MONO   1            /* bold and reverse video */
+#define F89_COLOUR 2
+
+/*
+ * Options.  f89_option reads the common ones (-u -s -r -l); main.c reads
+ * the ones for each mode.
+ */
 struct f89_options {
     int size;
     unsigned long seed;
     const char *load;           /* save string to resume, or 0 */
     int undo;                   /* 1 if undo is allowed */
+    int line;                   /* line mode asked for (-t, or -c) */
+    int compact;                /* line mode: compact display (-c) */
+    int style;                  /* full screen: style asked for (-m, -p) */
+    int forced;                 /* ... and it was asked for by name */
+    int ascii;                  /* full screen: + - | boxes (-a) */
 };
 
 /*
@@ -71,7 +84,7 @@ unsigned long f89_seed(unsigned long salt);
    buf needs 12 characters. */
 void f89_tile(char *buf, int exp);
 
-/* Options before parsing: 4x4, a fresh seed, no undo. */
+/* Options before parsing: 4x4, a fresh seed, no undo, the best style. */
 void f89_defaults(struct f89_options *o);
 
 /*
@@ -91,5 +104,20 @@ int f89_start(struct t89_game *g, const struct f89_options *o, const char *name)
 /* Print how to carry on later: "to carry on later: <command>-l <save>".
    command is the program and its options, ending in a space. */
 void f89_resume(const struct t89_game *g, const char *command);
+
+/*
+ * The two ways to play.  Each plays the game to the end and returns the
+ * program's exit status.
+ *
+ * f89_line (frontend/text/text.c) needs only the C89 library.  f89_screen
+ * (frontend/curses/curses.c) returns -1 without playing if the board won't
+ * fit the screen, so that the caller can fall back to f89_line.
+ * f89_screenok says whether this terminal can play full screen at all; if
+ * not, and there's a reason worth telling (an unknown TERM, a hardcopy
+ * terminal), it puts it in why.
+ */
+int f89_line(struct t89_game *g, const struct f89_options *o);
+int f89_screen(struct t89_game *g, const struct f89_options *o);
+int f89_screenok(char *why, int len);
 
 #endif

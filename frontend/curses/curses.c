@@ -16,12 +16,14 @@
  * Box lines use the terminal's line-drawing set when terminfo has one, and
  * + - | otherwise (or always, with -a).
  *
- * Rules shared with the text frontend: undo is off unless -u; quitting
+ * This is full-screen mode: f89_screen, called by main.c when f89_screenok
+ * says the terminal can do it.
+ *
+ * Rules shared with line mode: undo is off unless -u; quitting
  * prints the command to carry on later.  No input is ever thrown away (keys
  * typed ahead are played in order), nothing waits on a timer, and a lone ESC
  * means nothing, since curses can't tell it from the start of an arrow key.
  *
- *     2089 [-u] [-m] [-p] [-a] [-s size] [-r seed] [-l savestring] [-v] [-h]
  *
  * Author: Claude Opus 5.5 (claude-opus-5-5), October 2026.
  * MIT License; see LICENSE.
@@ -37,11 +39,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>                     /* isatty */
 #include "common.h"
 
-#define PLAIN  0
-#define MONO   1
-#define COLOUR 2
+#define PLAIN  F89_PLAIN
+#define MONO   F89_MONO
+#define COLOUR F89_COLOUR
 
 static struct t89_game game;            /* the game, for the signal handler */
 static char command[256];               /* how to restart: program and options */
@@ -49,18 +52,6 @@ static int ascii = 0, style = PLAIN, maxstyle = PLAIN;
 
 /* The board's place and shape on the screen. */
 static int top, left, cellw, cellh;     /* cell inner width and height */
-
-static void usage(const char *name, int status)
-{
-    printf("usage: %s [-u] [-m] [-p] [-a] [-s size] [-r seed] [-l savestring] [-v] [-h]\n",
-           name);
-    puts("  -m             mono: no colour, tiles in bold and reverse video");
-    puts("  -p             plain: no video attributes at all (Wyse 50 and the like)");
-    puts("  -a             draw boxes with + - | instead of line-drawing characters");
-    f89_usage();
-    puts("  -v             print the version");
-    exit(status);
-}
 
 /* Leave the screen as it was and say how to carry on. */
 static void finish(void)
@@ -371,35 +362,48 @@ static void styles(int want, int forced)
     style = want < maxstyle ? want : maxstyle;
 }
 
-int main(int argc, char **argv)
+int f89_screenok(char *why, int len)
+{
+    const char *t = getenv("TERM");
+    char *cup;
+    int err = 0, ok;
+
+    why[0] = '\0';
+    if (!isatty(0) || !isatty(1))
+        return 0;                       /* a pipe or a file: no need to say */
+    if (!t || !*t) {
+        if (len > 16)
+            strcpy(why, "TERM is not set");
+        return 0;
+    }
+    if (setupterm((char *) 0, 1, &err) != OK) {
+        if (len > 64)
+            sprintf(why, "TERM=%.32s is not a terminal I know", t);
+        return 0;
+    }
+    cup = tigetstr((char *) "cup");
+    ok = !hard_copy && !generic_type && cup != 0 && cup != (char *) -1;
+    if (!ok && len > 64)
+        sprintf(why, "TERM=%.32s %s", t, hard_copy ? "is a hardcopy terminal"
+                : "can't move the cursor");
+    del_curterm(cur_term);
+    return ok;
+}
+
+int f89_screen(struct t89_game *g, const struct f89_options *op)
 {
     struct t89_game undo, before;
     struct t89_result r;
     struct f89_options o;
     char save[T89_SAVELEN + 32];
-    int i, k, cmd, canundo = 0, over = 0, want = COLOUR, forced = 0;
+    int k, cmd, canundo = 0, over = 0;
 
-    f89_defaults(&o);
-    for (i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "-h") == 0)
-            usage(argv[0], EXIT_SUCCESS);
-        else if (strcmp(argv[i], "-v") == 0) {
-            printf("2089 %s (curses)\n", T89_VERSION);
-            return EXIT_SUCCESS;
-        } else if (strcmp(argv[i], "-m") == 0)
-            want = MONO, forced = 1;
-        else if (strcmp(argv[i], "-p") == 0)
-            want = PLAIN, forced = 1;
-        else if (strcmp(argv[i], "-a") == 0)
-            ascii = 1;
-        else if (f89_option(argc, argv, &i, &o) <= 0)
-            usage(argv[0], EXIT_FAILURE);
-    }
-    if (f89_start(&game, &o, argv[0]) < 0)
-        return EXIT_FAILURE;
-    sprintf(command, "%s %s%s%s%s", strlen(argv[0]) < sizeof command - 16 ? argv[0] : "2089",
-            o.undo ? "-u " : "",
-            want == MONO ? "-m " : "", want == PLAIN ? "-p " : "", ascii ? "-a " : "");
+    game = *g;
+    o = *op;
+    ascii = o.ascii;
+    sprintf(command, "2089 %s%s%s%s", o.undo ? "-u " : "",
+            o.forced && o.style == MONO ? "-m " : "",
+            o.forced && o.style == PLAIN ? "-p " : "", ascii ? "-a " : "");
 
     initscr();
     cbreak();
@@ -414,11 +418,16 @@ int main(int argc, char **argv)
 #endif
     if (layout() < 0) {
         endwin();
-        printf("%s: the screen is too small for a %dx%d board (%d columns, %d lines)\n",
-               argv[0], game.size, game.size, COLS, LINES);
-        return EXIT_FAILURE;
+        signal(SIGINT, SIG_DFL);
+        signal(SIGTERM, SIG_DFL);
+#ifdef SIGHUP
+        signal(SIGHUP, SIG_DFL);
+#endif
+        printf("2089: the screen is too small for a %dx%d board (%d columns, %d lines):"
+               " playing in line mode\n", game.size, game.size, COLS, LINES);
+        return -1;
     }
-    styles(want, forced);
+    styles(o.style, o.forced);
     over = t89_over(&game);
     draw(o.undo);
     if (over)
