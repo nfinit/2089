@@ -64,3 +64,4 @@ test/front
 test/replay
 frontend/curses/2089
 frontend/curses/probe
+frontend/cgi/2089.cgi

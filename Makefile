@@ -7,6 +7,7 @@
 #   make run             build, then play: the full program if it was built,
 #                        else the text frontend (make run ARGS="-u -s 5")
 #   make check           run the tests: the core's and the frontends' shared code
+#   make check-cgi       build the CGI frontend and run its HTTP-shape checks
 #   make CC=c89 CFLAGS=-O
 #
 # Developer checks (gcc): make strict
@@ -17,6 +18,7 @@ CURSES = -lcurses
 
 CORE = 2089.o rng89.o
 FRONT = frontend/common.o frontend/text/text.o
+CGI  = frontend/cgi/2089.cgi
 
 # Sources outside the top directory include "2089.h" with no path, so that
 # every platform's build can say where it is (-I here).
@@ -54,6 +56,13 @@ frontend/common.o: frontend/common.c frontend/common.h 2089.h
 frontend/text/text.o: frontend/text/text.c frontend/common.h 2089.h
 	$(CC) $(CFLAGS) -I. -Ifrontend -c -o $@ frontend/text/text.c
 
+cgi: $(CGI)
+
+frontend/cgi/2089.cgi: frontend/cgi/cgi.c frontend/common.h 2089.h \
+		$(CORE) frontend/common.o
+	$(CC) $(CFLAGS) -I. -Ifrontend -o $@ frontend/cgi/cgi.c \
+		frontend/common.o $(CORE)
+
 # The program is frontend/main.c: plain, it is the text frontend; with
 # T89_CURSES and curses.c it plays full screen, with line mode to fall back on.
 frontend/text/2089: frontend/main.c frontend/common.h 2089.h $(CORE) $(FRONT)
@@ -86,6 +95,9 @@ check: test/t89test test/front
 	test/t89test
 	test/front
 
+check-cgi: cgi
+	sh test/cgi.sh
+
 # Slow (about a minute): compare 1000 games with an independent Python model.
 oracle: test/replay
 	python3 test/oracle.py test/replay 1000
@@ -105,7 +117,7 @@ strict:
 	done
 	@# C89 promises only 6 significant, case-blind characters in external
 	@# names: the core's, and the frontends' with them.
-	for f in frontend/main frontend/common frontend/text/text frontend/curses/curses; do \
+	for f in frontend/main frontend/common frontend/text/text frontend/curses/curses frontend/cgi/cgi; do \
 	    gcc $(STRICT) -DT89_CURSES -I. -Ifrontend -c $$f.c -o /tmp/2089-`basename $$f`.o \
 	    || exit 1; \
 	done
@@ -115,6 +127,8 @@ strict:
 	    /tmp/2089-common.o /tmp/2089-text.o /tmp/2089-curses.o \
 	    | awk 'NF == 3 {print tolower(substr($$3,1,6))}' | sort | uniq -d`; \
 	test -z "$$d" || { echo "external names clash in 6 characters: $$d"; exit 1; }
+	gcc $(STRICT) -I. -Ifrontend -o /tmp/2089-cgi frontend/cgi/cgi.c \
+	    frontend/common.c 2089.c rng89.c
 	gcc $(STRICT) -I. -Ifrontend -o /tmp/2089-text frontend/main.c \
 	    frontend/text/text.c frontend/common.c 2089.c rng89.c
 	gcc $(STRICT) -DT89_CURSES -I. -Ifrontend -o /tmp/2089-curses frontend/main.c \
@@ -126,4 +140,5 @@ strict:
 	/tmp/2089-front
 
 clean:
-	rm -f $(CORE) $(FRONT) frontend/text/2089 frontend/curses/2089 frontend/curses/probe test/t89test test/front test/replay
+	rm -f $(CORE) $(FRONT) $(CGI) frontend/text/2089 frontend/curses/2089 \
+		frontend/curses/probe test/t89test test/front test/replay

@@ -20,6 +20,8 @@ make                # the text frontend and the tests, plus the full program
 make text           # the text frontend and the tests only
 make run            # build, then play (make run ARGS="-u -s 5" passes options)
 make check          # run the tests
+make cgi            # the generic CGI frontend, frontend/cgi/2089.cgi
+make check-cgi      # build the CGI frontend and run its HTTP-shape checks
 ```
 
 `make` uses `cc` by default; name another compiler with `CC`:
@@ -51,6 +53,23 @@ PDCurses); if the library isn't found (`make` tries `-lcurses`, `-lncurses`, and
 Full screen, the best score for each board size is kept in `~/.2089`, as the save
 string of the game that made it (so `2089 -l` brings it back). To keep it somewhere
 else, build with `-DT89_SCORES='"/path/to/file"'`.
+
+## CGI frontend
+
+The generic CGI frontend keeps the whole game in the URL. Build it with
+`make cgi`, then run it under any CGI server (or set `QUERY_STRING` by hand):
+
+```sh
+QUERY_STRING='' frontend/cgi/2089.cgi          # a new 4x4 game
+QUERY_STRING='n=4' frontend/cgi/2089.cgi      # the same, explicitly
+```
+
+The save string is the state; a move is a GET such as
+`2089.cgi?s=<save>&m=left`. There are no sessions, cookies or server-side
+games, and the browser Back button is the only undo. The frontend draws an
+HTML table board so that the rules can be tested before the server-composited
+GIF board and the obsidian skin are added. Links use the CGI `SCRIPT_NAME`, so
+the program can be installed under any path or name.
 
 ## Other C implementations of 2048
 
