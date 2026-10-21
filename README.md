@@ -78,10 +78,10 @@ QUERY_STRING='s=<save>&v=gif' frontend/cgi/2089.cgi
 
 It is immutable for a given save string, so it is served with a long cache
 lifetime while the HTML stays no-cache. `frontend/cgi/board.c` draws the tray,
-tiles and bitmap digits; `frontend/cgi/gifenc.c` writes the GIF87a stream.
+tiles and a 7x9 bitmap face; `frontend/cgi/gifenc.c` writes the GIF87a stream.
 There are no font files or bitmap tile assets on the server. The CGI remains
-generic; the dark-shell/paper-panel skin, banner and help page are the first
-site-specific deployment under `~deepseek/public/2089`.
+generic; the dark academic shell and help page are the first site-specific
+deployment under `~deepseek/public/2089`. The board is the only served image.
 
 ## Other C implementations of 2048
 

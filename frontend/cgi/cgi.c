@@ -44,8 +44,8 @@ static void head(const char *title)
     printf("Cache-Control: no-cache\n");
     printf("Pragma: no-cache\n\n");
     printf("<HTML><HEAD><TITLE>%s</TITLE></HEAD>\n", title);
-    printf("<BODY BGCOLOR=\"#0e1020\" TEXT=\"#2b2620\" LINK=\"#1f5f8b\" "
-           "VLINK=\"#b05a2a\" ALINK=\"#b05a2a\">\n");
+    printf("<BODY BGCOLOR=\"#0e1020\" TEXT=\"#c8cce0\" LINK=\"#7fb8ff\" "
+           "VLINK=\"#c090ff\" ALINK=\"#ffffff\">\n");
 }
 
 static void foot(void)
@@ -56,11 +56,13 @@ static void foot(void)
 static void bad_request(const char *why)
 {
     head("2089 - bad request");
-    printf("<CENTER><TABLE WIDTH=680 BORDER=0 CELLPADDING=14 CELLSPACING=0 "
-           "BGCOLOR=\"#fbf7ef\"><TR><TD>\n");
-    printf("<FONT SIZE=5 COLOR=\"#a95d2a\"><B>2089</B></FONT><BR>\n");
-    printf("<FONT SIZE=2>%s</FONT><P>\n", why);
-    printf("<FONT SIZE=2><A HREF=\"%s?n=4\">Start a new game</A></FONT>\n",
+    printf("<CENTER><TABLE WIDTH=680 BORDER=0 CELLPADDING=20 CELLSPACING=0 "
+           "BGCOLOR=\"#141829\"><TR><TD>\n");
+    printf("<FONT FACE=\"Times New Roman\" SIZE=5 COLOR=\"#ffd090\"><B>2089</B>"
+           "</FONT><BR>\n");
+    printf("<FONT SIZE=1 COLOR=\"#8a90a8\">BAD REQUEST</FONT>\n");
+    printf("<HR><P><FONT SIZE=2>%s</FONT></P>\n", why);
+    printf("<P><FONT SIZE=2><A HREF=\"%s?n=4\">Start a new game</A></FONT></P>\n",
            cgi_self);
     printf("</TD></TR></TABLE></CENTER>\n");
     foot();
@@ -153,10 +155,11 @@ static void move_buttons(const char *save)
     static const char *label[4] = { "Up", "Left", "Right", "Down" };
     int i;
 
-    printf("<TABLE BORDER=1 CELLPADDING=4 CELLSPACING=0 WIDTH=\"100%%\" "
-           "BGCOLOR=\"#f3eadc\"><TR>\n");
+    printf("<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=2 WIDTH=\"100%%\" "
+           "BGCOLOR=\"#141829\"><TR>\n");
     for (i = 0; i < 4; i++) {
-        printf("<TD ALIGN=CENTER WIDTH=\"25%%\"><FONT SIZE=2>");
+        printf("<TD ALIGN=CENTER WIDTH=\"25%%\" BGCOLOR=\"#1b2133\">"
+               "<FONT SIZE=2>");
         move_link(save, dir[i], label[i]);
         printf("</FONT></TD>\n");
     }
@@ -194,18 +197,20 @@ static void page(const struct t89_game *g, const char *save, int blocked)
     won = t89_won(g);
     head("2089");
 
-    printf("<CENTER><TABLE WIDTH=680 BORDER=0 CELLPADDING=0 CELLSPACING=0 "
-           "BGCOLOR=\"#fbf7ef\"><TR><TD>\n");
-    printf("<IMG SRC=\"banner.gif?v=2\" WIDTH=680 HEIGHT=120 BORDER=0 ALT=\"2089\">\n");
-    printf("<TABLE WIDTH=680 BORDER=0 CELLPADDING=0 CELLSPACING=0 "
-           "BGCOLOR=\"#fbf7ef\"><TR><TD>\n");
-    printf("<TABLE WIDTH=\"100%%\" BORDER=0 CELLPADDING=0 CELLSPACING=0 "
-           "BGCOLOR=\"#fbf7ef\"><TR><TD>&nbsp;&nbsp;\n");
-    printf("<FONT SIZE=1 COLOR=\"#6b6256\">[ <A HREF=\"../\">deepseek</A> | "
-           "<B>2089</B> ]</FONT>\n");
-    printf("</TD></TR></TABLE>\n");
-    printf("<TABLE WIDTH=\"100%%\" BORDER=0 CELLPADDING=6 CELLSPACING=0 "
-           "BGCOLOR=\"#f3eadc\"><TR><TD><FONT SIZE=2>\n");
+    printf("<CENTER><TABLE WIDTH=680 BORDER=0 CELLPADDING=20 CELLSPACING=0 "
+           "BGCOLOR=\"#141829\"><TR><TD>\n");
+
+    printf("<TABLE WIDTH=\"100%%\" BORDER=0 CELLPADDING=0 CELLSPACING=0>"
+           "<TR><TD VALIGN=BOTTOM>\n");
+    printf("<FONT FACE=\"Times New Roman\" SIZE=5 COLOR=\"#ffd090\"><B>2089</B>"
+           "</FONT><FONT SIZE=1 COLOR=\"#8a90a8\">&nbsp; CGI DEMO</FONT>\n");
+    printf("</TD><TD ALIGN=RIGHT VALIGN=BOTTOM><FONT SIZE=1>"
+           "[ <A HREF=\"index.html\">overview</A> | <B>play</B> | "
+           "<A HREF=\"how.html\">how to play</A> ]</FONT></TD></TR></TABLE>\n");
+    printf("<HR>\n");
+
+    printf("<TABLE WIDTH=\"100%%\" BORDER=0 CELLPADDING=8 CELLSPACING=0 "
+           "BGCOLOR=\"#0b0f1a\"><TR><TD><FONT SIZE=2>\n");
     if (won)
         printf("<B>You reached 2048.</B>");
     else if (over)
@@ -214,39 +219,38 @@ static void page(const struct t89_game *g, const char *save, int blocked)
         printf("<B>That direction is blocked.</B>");
     else
         printf("<B>Your move.</B>");
-    printf(" &nbsp;|&nbsp; Score <B><FONT COLOR=\"#a95d2a\">%lu</FONT></B>",
+    printf(" &nbsp;|&nbsp; Score <B><FONT COLOR=\"#ffd090\">%lu</FONT></B>",
            g->score);
     printf(" &nbsp;|&nbsp; Top tile <B>%s</B> &nbsp;|&nbsp; %lu %s",
            best, g->moves, move_word);
     printf("</FONT></TD></TR></TABLE>\n");
 
-    printf("<TABLE WIDTH=\"100%%\" BORDER=0 CELLPADDING=18 CELLSPACING=0>"
-           "<TR><TD>\n");
-    printf("<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=\"100%%\">"
-           "<TR>\n");
-    printf("<TD VALIGN=TOP WIDTH=400>\n");
-    printf("<IMG SRC=\"%s?s=%s&amp;v=gif\" WIDTH=400 HEIGHT=400 BORDER=0 "
+    printf("<BR><TABLE WIDTH=\"100%%\" BORDER=0 CELLPADDING=0 CELLSPACING=0>"
+           "<TR><TD VALIGN=TOP WIDTH=400>\n");
+    printf("<IMG SRC=\"%s?s=%s&amp;v=gif&amp;r=3\" WIDTH=400 HEIGHT=400 BORDER=0 "
            "ALT=\"2089 board\">\n", cgi_self, save);
+    printf("<BR><FONT SIZE=2 COLOR=\"#8a90a8\">Figure 1. A 400x400 GIF; the "
+           "board is the only bitmap on this page.</FONT>\n");
     printf("</TD><TD VALIGN=TOP WIDTH=20>&nbsp;</TD><TD VALIGN=TOP>\n");
-    printf("<FONT SIZE=1 COLOR=\"#8a7e6e\">THIS GAME</FONT><BR>\n");
-    printf("<FONT SIZE=6 COLOR=\"#a95d2a\"><B>%lu</B></FONT><BR>\n", g->score);
-    printf("<FONT SIZE=1 COLOR=\"#7a6f60\">%lu %s &middot; top tile %s</FONT>\n",
+    printf("<FONT SIZE=1 COLOR=\"#8a90a8\">THIS GAME</FONT><BR>\n");
+    printf("<FONT FACE=\"Times New Roman\" SIZE=6 COLOR=\"#ffd090\">"
+           "<B>%lu</B></FONT><BR>\n", g->score);
+    printf("<FONT SIZE=1 COLOR=\"#8a90a8\">%lu %s &middot; top tile %s</FONT>\n",
            g->moves, move_word, best);
-    printf("<BR><BR><FONT SIZE=1 COLOR=\"#8a7e6e\">MOVE</FONT><BR>\n");
+    printf("<BR><BR><FONT SIZE=1 COLOR=\"#8a90a8\">MOVE</FONT><BR>\n");
     move_buttons(save);
     printf("<BR><A HREF=\"%s?n=4\"><B>New game</B></A><BR>\n", cgi_self);
     printf("<A HREF=\"how.html\">How to play</A>\n");
-    printf("<BR><BR><FONT SIZE=1 COLOR=\"#5e5548\">\n");
-    printf("<B>No JavaScript. No cookies.</B> The whole game is in the link.\n");
-    printf("<BR><BR>Save: <FONT FACE=\"Courier New,Courier\" SIZE=1>%s</FONT>\n",
+    printf("<BR><BR><FONT SIZE=1 COLOR=\"#8a90a8\">\n");
+    printf("<B>No JavaScript. No cookies.</B> The whole game is in the link; "
+           "Back is undo.\n");
+    printf("<BR><BR>SAVE<BR><FONT FACE=\"Courier New,Courier\" SIZE=1>%s</FONT>\n",
            save);
     printf("</FONT>\n");
     printf("</TD></TR></TABLE>\n");
-    printf("</TD></TR></TABLE>\n");
-    printf("<HR><FONT SIZE=1 COLOR=\"#8a7e6e\">2089 %s &middot; engine by Claude Opus 5.5 "
-           "&middot; web front end by DeepSeek V4.1 Flash 1017</FONT>\n",
-           T89_VERSION);
-    printf("</TD></TR></TABLE>\n");
+    printf("<HR><FONT SIZE=1 COLOR=\"#8a90a8\">2089 %s &middot; 2048 engine by "
+           "Claude Opus 5.5 &middot; web front end by DeepSeek V4.1 Flash 1017"
+           "</FONT>\n", T89_VERSION);
     printf("</TD></TR></TABLE></CENTER>\n");
     foot();
 }

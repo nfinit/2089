@@ -21,8 +21,6 @@
 #define C_SHADOW      7
 #define C_TEXT_DARK   8
 #define C_TEXT_LIGHT  9
-#define C_TEXT_DARK_SHADOW  10
-#define C_TEXT_LIGHT_SHADOW 11
 #define C_TILE        16
 #define C_TILE_MAX    16
 
@@ -64,18 +62,18 @@ static unsigned long mix_color(unsigned long a, unsigned long b, int pct)
 static unsigned long base_color(int exp)
 {
     switch (exp) {
-    case 1:  return 0xeee4daUL;
-    case 2:  return 0xede0c8UL;
-    case 3:  return 0xf2b179UL;
-    case 4:  return 0xf59563UL;
-    case 5:  return 0xf67c5fUL;
-    case 6:  return 0xf65e3bUL;
-    case 7:  return 0xedcf72UL;
-    case 8:  return 0xedcc61UL;
-    case 9:  return 0xedc850UL;
-    case 10: return 0xedc53fUL;
-    case 11: return 0xedc22eUL;
-    default: return 0xb58bdcUL;
+    case 1:  return 0xe9e3d7UL;
+    case 2:  return 0xddd2bfUL;
+    case 3:  return 0xc9a56fUL;
+    case 4:  return 0xb97d53UL;
+    case 5:  return 0x9c6244UL;
+    case 6:  return 0x7d4f3bUL;
+    case 7:  return 0x5e7074UL;
+    case 8:  return 0x496166UL;
+    case 9:  return 0x375157UL;
+    case 10: return 0x2a4148UL;
+    case 11: return 0x1f3239UL;
+    default: return 0x4c5b62UL;
     }
 }
 
@@ -86,18 +84,16 @@ static void palette_init(void)
 
     if (palette_ready)
         return;
-    set_color(C_PAPER, 0xfbf7efUL);
-    set_color(C_TRAY, 0xd8cebdUL);
-    set_color(C_TRAY_DARK, 0xa89b89UL);
-    set_color(C_TRAY_LIGHT, 0xe7ddcdUL);
-    set_color(C_SLOT, 0xb9ad9cUL);
-    set_color(C_SLOT_DARK, 0xa99d8dUL);
-    set_color(C_SLOT_LIGHT, 0xc9bdabUL);
-    set_color(C_SHADOW, 0xcdbfaeUL);
-    set_color(C_TEXT_DARK, 0x4b4436UL);
-    set_color(C_TEXT_LIGHT, 0xfff8eeUL);
-    set_color(C_TEXT_DARK_SHADOW, 0xf4eadbUL);
-    set_color(C_TEXT_LIGHT_SHADOW, 0x9a5b35UL);
+    set_color(C_PAPER, 0xf4f0e6UL);
+    set_color(C_TRAY, 0xd3ccbeUL);
+    set_color(C_TRAY_DARK, 0xa79d8dUL);
+    set_color(C_TRAY_LIGHT, 0xe2dbcfUL);
+    set_color(C_SLOT, 0xb7aea0UL);
+    set_color(C_SLOT_DARK, 0xa49a8cUL);
+    set_color(C_SLOT_LIGHT, 0xc6bdb0UL);
+    set_color(C_SHADOW, 0xc8bfaeUL);
+    set_color(C_TEXT_DARK, 0x2b2620UL);
+    set_color(C_TEXT_LIGHT, 0xf7f2e8UL);
     for (exp = 1; exp <= C_TILE_MAX; exp++) {
         int i = C_TILE + (exp - 1) * 3;
         base = base_color(exp);
@@ -163,33 +159,29 @@ static int tile_index(int exp)
 
 static int text_index(int exp)
 {
-    if (exp <= 2 || (exp >= 7 && exp <= 10))
+    if (exp <= 3)
         return C_TEXT_DARK;
     return C_TEXT_LIGHT;
 }
 
-static int text_shadow_index(int exp)
-{
-    if (exp <= 2 || (exp >= 7 && exp <= 10))
-        return C_TEXT_DARK_SHADOW;
-    return C_TEXT_LIGHT_SHADOW;
-}
-
 /*
- * A compact 5x7 bitmap face.  It is scaled up with whole-pixel blocks, which
+ * A compact 7x9 bitmap face.  It is scaled up with whole-pixel blocks, which
  * stays crisp on a 1990s X server and needs no font files on the server.
  */
-static const unsigned char digit[10][7] = {
-    { 0x0e, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0e },
-    { 0x04, 0x0c, 0x04, 0x04, 0x04, 0x04, 0x0e },
-    { 0x0e, 0x11, 0x01, 0x02, 0x04, 0x08, 0x1f },
-    { 0x1e, 0x01, 0x01, 0x0e, 0x01, 0x01, 0x1e },
-    { 0x02, 0x06, 0x0a, 0x12, 0x1f, 0x02, 0x02 },
-    { 0x1f, 0x10, 0x1e, 0x01, 0x01, 0x11, 0x0e },
-    { 0x06, 0x08, 0x10, 0x1e, 0x11, 0x11, 0x0e },
-    { 0x1f, 0x01, 0x02, 0x04, 0x08, 0x08, 0x08 },
-    { 0x0e, 0x11, 0x11, 0x0e, 0x11, 0x11, 0x0e },
-    { 0x0e, 0x11, 0x11, 0x0f, 0x01, 0x02, 0x0c }
+#define GLYPH_W 7
+#define GLYPH_H 9
+
+static const unsigned char digit[10][GLYPH_H] = {
+    { 0x1c, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x1c },
+    { 0x08, 0x18, 0x28, 0x08, 0x08, 0x08, 0x08, 0x08, 0x3e },
+    { 0x1c, 0x22, 0x02, 0x04, 0x08, 0x10, 0x20, 0x20, 0x3e },
+    { 0x1c, 0x22, 0x02, 0x04, 0x0c, 0x02, 0x02, 0x22, 0x1c },
+    { 0x04, 0x0c, 0x14, 0x24, 0x44, 0x7e, 0x04, 0x04, 0x04 },
+    { 0x3e, 0x20, 0x20, 0x3c, 0x02, 0x02, 0x02, 0x22, 0x1c },
+    { 0x1c, 0x22, 0x20, 0x3c, 0x22, 0x22, 0x22, 0x22, 0x1c },
+    { 0x3e, 0x02, 0x04, 0x04, 0x08, 0x08, 0x10, 0x10, 0x10 },
+    { 0x1c, 0x22, 0x22, 0x1c, 0x22, 0x22, 0x22, 0x22, 0x1c },
+    { 0x1c, 0x22, 0x22, 0x22, 0x1e, 0x02, 0x02, 0x22, 0x1c }
 };
 
 static void draw_digits(unsigned char *pix, int x, int y,
@@ -199,11 +191,11 @@ static void draw_digits(unsigned char *pix, int x, int y,
 
     for (i = 0; i < n; i++) {
         int d = digits[i] - '0';
-        int x0 = x + i * 6 * scale;
+        int x0 = x + i * (GLYPH_W + 1) * scale;
 
-        for (row = 0; row < 7; row++) {
-            for (col = 0; col < 5; col++) {
-                if (digit[d][row] & (1 << (4 - col))) {
+        for (row = 0; row < GLYPH_H; row++) {
+            for (col = 0; col < GLYPH_W; col++) {
+                if (digit[d][row] & (1 << (GLYPH_W - 1 - col))) {
                     fill_rect(pix, x0 + col * scale, y + row * scale,
                               scale, scale, color);
                 }
@@ -235,14 +227,14 @@ static void draw_value(unsigned char *pix, int x, int y, int w, int h,
     }
     scale = 5;
     while (scale > 1 &&
-           ((n * 5 + (n - 1)) * scale > w - 2 || 7 * scale > h - 2))
+           ((n * GLYPH_W + (n - 1)) * scale > w - 2 ||
+            GLYPH_H * scale > h - 2))
         scale--;
-    tw = (n * 5 + (n - 1)) * scale;
-    th = 7 * scale;
+    tw = (n * GLYPH_W + (n - 1)) * scale;
+    th = GLYPH_H * scale;
     x0 = x + (w - tw) / 2;
     y0 = y + (h - th) / 2;
 
-    draw_digits(pix, x0 + 1, y0 + 1, digits, n, scale, text_shadow_index(exp));
     draw_digits(pix, x0, y0, digits, n, scale, text_index(exp));
 }
 
