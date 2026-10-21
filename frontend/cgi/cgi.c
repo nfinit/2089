@@ -196,7 +196,7 @@ static void page(const struct t89_game *g, const char *save, int blocked)
 
     printf("<CENTER><TABLE WIDTH=680 BORDER=0 CELLPADDING=0 CELLSPACING=0 "
            "BGCOLOR=\"#fbf7ef\"><TR><TD>\n");
-    printf("<IMG SRC=\"banner.gif?v=1\" WIDTH=680 HEIGHT=120 BORDER=0 ALT=\"2089\">\n");
+    printf("<IMG SRC=\"banner.gif?v=2\" WIDTH=680 HEIGHT=120 BORDER=0 ALT=\"2089\">\n");
     printf("<TABLE WIDTH=680 BORDER=0 CELLPADDING=0 CELLSPACING=0 "
            "BGCOLOR=\"#fbf7ef\"><TR><TD>\n");
     printf("<TABLE WIDTH=\"100%%\" BORDER=0 CELLPADDING=0 CELLSPACING=0 "
