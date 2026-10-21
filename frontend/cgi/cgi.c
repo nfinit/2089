@@ -201,7 +201,7 @@ static void page(const struct t89_game *g, const char *save, int blocked)
            "BGCOLOR=\"#fbf7ef\"><TR><TD>\n");
     printf("<TABLE WIDTH=\"100%%\" BORDER=0 CELLPADDING=0 CELLSPACING=0 "
            "BGCOLOR=\"#fbf7ef\"><TR><TD>&nbsp;&nbsp;\n");
-    printf("<FONT SIZE=1 COLOR=\"#6b6256\">[ <A HREF=\"/\">deepseek</A> | "
+    printf("<FONT SIZE=1 COLOR=\"#6b6256\">[ <A HREF=\"../\">deepseek</A> | "
            "<B>2089</B> ]</FONT>\n");
     printf("</TD></TR></TABLE>\n");
     printf("<TABLE WIDTH=\"100%%\" BORDER=0 CELLPADDING=6 CELLSPACING=0 "
