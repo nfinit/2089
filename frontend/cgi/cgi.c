@@ -163,14 +163,19 @@ static int parse_query(struct cgi_query *q)
 static void board(const struct t89_game *g)
 {
     char t[12];
-    int r, c, exp, cell;
+    int r, c, exp, cell, table_width;
     int px = CGI_BOARD_PX;
 
     cell = (px - (g->size + 1) * 4) / g->size;
     if (cell < 24)
         cell = 24;
-    printf("<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=4 "
-           "BGCOLOR=\"#d8cebd\"><TR>\n");
+    table_width = g->size * cell + (g->size + 1) * 4;
+    /* Netscape 4 does not paint a table's own cell-spacing gaps; the wrapper
+       cell is what makes the tray visible around the board there. */
+    printf("<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0><TR><TD "
+           "BGCOLOR=\"#d8cebd\">\n");
+    printf("<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=4 WIDTH=%d "
+           "BGCOLOR=\"#d8cebd\"><TR>\n", table_width);
     for (r = 0; r < g->size; r++) {
         if (r > 0)
             printf("</TR><TR>\n");
@@ -183,11 +188,14 @@ static void board(const struct t89_game *g)
                 int fs = strlen(t) <= 2 ? 5 : (cell >= 64 ? 4 : 3);
                 printf("<FONT SIZE=%d COLOR=\"%s\"><B>%s</B></FONT>",
                        fs, tile_fg(exp), t);
+            } else {
+                printf("&nbsp;");
             }
             printf("</TD>\n");
         }
     }
     printf("</TR></TABLE>\n");
+    printf("</TD></TR></TABLE>\n");
 }
 
 static void move_link(const char *save, const char *dir, const char *label)
@@ -202,10 +210,10 @@ static void move_buttons(const char *save)
     static const char *label[4] = { "Up", "Left", "Right", "Down" };
     int i;
 
-    printf("<TABLE BORDER=1 CELLPADDING=4 CELLSPACING=0 "
+    printf("<TABLE BORDER=1 CELLPADDING=4 CELLSPACING=0 WIDTH=\"100%%\" "
            "BGCOLOR=\"#f3eadc\"><TR>\n");
     for (i = 0; i < 4; i++) {
-        printf("<TD ALIGN=CENTER WIDTH=58><FONT SIZE=2>");
+        printf("<TD ALIGN=CENTER WIDTH=\"25%%\"><FONT SIZE=2>");
         move_link(save, dir[i], label[i]);
         printf("</FONT></TD>\n");
     }
@@ -248,15 +256,15 @@ static void page(const struct t89_game *g, const char *save, int blocked)
     printf("<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=\"100%%\"><TR>\n");
     printf("<TD VALIGN=TOP WIDTH=360>\n");
     board(g);
-    printf("<BR>\n");
-    move_buttons(save);
     printf("</TD><TD VALIGN=TOP WIDTH=20>&nbsp;</TD><TD VALIGN=TOP>\n");
 
     printf("<FONT SIZE=1 COLOR=\"#8a7e6e\">THIS GAME</FONT><BR>\n");
     printf("<FONT SIZE=5 COLOR=\"#a95d2a\"><B>%lu</B></FONT><BR>\n", g->score);
     printf("<FONT SIZE=1 COLOR=\"#7a6f60\">%lu moves &middot; top tile %s</FONT>\n",
            g->moves, best);
-    printf("<BR><BR><A HREF=\"%s?n=4\"><B>New game</B></A>\n", cgi_self);
+    printf("<BR><BR><FONT SIZE=1 COLOR=\"#8a7e6e\">MOVE</FONT><BR>\n");
+    move_buttons(save);
+    printf("<BR><A HREF=\"%s?n=4\"><B>New game</B></A>\n", cgi_self);
     printf("<BR><BR><FONT SIZE=1 COLOR=\"#5e5548\">\n");
     printf("<B>No JavaScript. No cookies.</B> The whole game is in the link.\n");
     printf("<BR><BR>Save: <FONT FACE=\"Courier New,Courier\" SIZE=1>%s</FONT>\n",
