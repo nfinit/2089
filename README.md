@@ -66,10 +66,22 @@ QUERY_STRING='n=4' frontend/cgi/2089.cgi      # the same, explicitly
 
 The save string is the state; a move is a GET such as
 `2089.cgi?s=<save>&m=left`. There are no sessions, cookies or server-side
-games, and the browser Back button is the only undo. The frontend draws an
-HTML table board so that the rules can be tested before the server-composited
-GIF board and the obsidian skin are added. Links use the CGI `SCRIPT_NAME`, so
-the program can be installed under any path or name.
+games, and the browser Back button is the only undo. Links use the CGI
+`SCRIPT_NAME`, so the program can be installed under any path or name.
+
+The page uses an HTML 3.2 table layout and a 400x400 server-composited GIF
+board. The image is a separate, side-effect-free view of the same state:
+
+```sh
+QUERY_STRING='s=<save>&v=gif' frontend/cgi/2089.cgi
+```
+
+It is immutable for a given save string, so it is served with a long cache
+lifetime while the HTML stays no-cache. `frontend/cgi/board.c` draws the tray,
+tiles and bitmap digits; `frontend/cgi/gifenc.c` writes the GIF87a stream.
+There are no font files or bitmap tile assets on the server. The CGI remains
+generic; the dark-shell/paper-panel skin, banner and help page are the first
+site-specific deployment under `~deepseek/public/2089`.
 
 ## Other C implementations of 2048
 

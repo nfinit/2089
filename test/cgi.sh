@@ -32,4 +32,17 @@ QUERY_STRING='n=4' "$prog" > "$tmp"
 grep -q '<TITLE>2089</TITLE>' "$tmp"
 grep -q 'New game' "$tmp"
 
+QUERY_STRING='n=4&v=gif' "$prog" > "$tmp"
+grep -q '^Content-Type: image/gif' "$tmp"
+grep -q 'GIF87a' "$tmp"
+test `wc -c < "$tmp"` -gt 1000
+
+QUERY_STRING='n=8&v=gif' "$prog" > "$tmp"
+grep -q '^Content-Type: image/gif' "$tmp"
+grep -q 'GIF87a' "$tmp"
+test `wc -c < "$tmp"` -gt 1000
+
+QUERY_STRING='n=4&v=html' "$prog" > "$tmp"
+grep -q 'bad request' "$tmp"
+
 echo "cgi: ok"

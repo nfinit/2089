@@ -19,6 +19,7 @@ CURSES = -lcurses
 CORE = 2089.o rng89.o
 FRONT = frontend/common.o frontend/text/text.o
 CGI  = frontend/cgi/2089.cgi
+CGI_SRC = frontend/cgi/cgi.c frontend/cgi/board.c frontend/cgi/gifenc.c
 
 # Sources outside the top directory include "2089.h" with no path, so that
 # every platform's build can say where it is (-I here).
@@ -58,9 +59,9 @@ frontend/text/text.o: frontend/text/text.c frontend/common.h 2089.h
 
 cgi: $(CGI)
 
-frontend/cgi/2089.cgi: frontend/cgi/cgi.c frontend/common.h 2089.h \
-		$(CORE) frontend/common.o
-	$(CC) $(CFLAGS) -I. -Ifrontend -o $@ frontend/cgi/cgi.c \
+frontend/cgi/2089.cgi: $(CGI_SRC) frontend/cgi/board.h frontend/cgi/gifenc.h \
+		frontend/common.h 2089.h $(CORE) frontend/common.o
+	$(CC) $(CFLAGS) -I. -Ifrontend -o $@ $(CGI_SRC) \
 		frontend/common.o $(CORE)
 
 # The program is frontend/main.c: plain, it is the text frontend; with
@@ -117,17 +118,17 @@ strict:
 	done
 	@# C89 promises only 6 significant, case-blind characters in external
 	@# names: the core's, and the frontends' with them.
-	for f in frontend/main frontend/common frontend/text/text frontend/curses/curses frontend/cgi/cgi; do \
+	for f in frontend/main frontend/common frontend/text/text frontend/curses/curses frontend/cgi/cgi frontend/cgi/board frontend/cgi/gifenc; do \
 	    gcc $(STRICT) -DT89_CURSES -I. -Ifrontend -c $$f.c -o /tmp/2089-`basename $$f`.o \
 	    || exit 1; \
 	done
 	@d=`nm -g --defined-only /tmp/2089-strict.o /tmp/rng89-strict.o | awk 'NF == 3 {print tolower(substr($$3,1,6))}' | sort | uniq -d`; \
 	test -z "$$d" || { echo "external names clash in 6 characters: $$d"; exit 1; }
 	@d=`nm -g --defined-only /tmp/2089-strict.o /tmp/rng89-strict.o /tmp/2089-main.o \
-	    /tmp/2089-common.o /tmp/2089-text.o /tmp/2089-curses.o \
+	    /tmp/2089-common.o /tmp/2089-text.o /tmp/2089-curses.o /tmp/2089-board.o /tmp/2089-gifenc.o \
 	    | awk 'NF == 3 {print tolower(substr($$3,1,6))}' | sort | uniq -d`; \
 	test -z "$$d" || { echo "external names clash in 6 characters: $$d"; exit 1; }
-	gcc $(STRICT) -I. -Ifrontend -o /tmp/2089-cgi frontend/cgi/cgi.c \
+	gcc $(STRICT) -I. -Ifrontend -o /tmp/2089-cgi $(CGI_SRC) \
 	    frontend/common.c 2089.c rng89.c
 	gcc $(STRICT) -I. -Ifrontend -o /tmp/2089-text frontend/main.c \
 	    frontend/text/text.c frontend/common.c 2089.c rng89.c

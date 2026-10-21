@@ -7,8 +7,8 @@
  *
  * There is no session, cookie or server-side game state; the browser Back
  * button is the only undo.  A new game is ?n=4.  This first version draws the
- * board as an HTML table; the obsidian skin and the server-composited GIF
- * board are a later frontend layer, not a dependency of the rules.
+ * board as a server-composited GIF; the skin is a later frontend layer, not
+ * a dependency of the rules.
  *
  * Author: DeepSeek V4.1 Flash 1017, October 2026.
  * MIT License; see LICENSE.
@@ -20,9 +20,10 @@
 #include <time.h>
 #include "2089.h"
 #include "common.h"
+#include "board.h"
+#include "gifenc.h"
 
 #define CGI_QUERY_MAX 1024
-#define CGI_BOARD_PX  330
 
 static char cgi_self[128] = "2089.cgi";
 
@@ -33,35 +34,9 @@ struct cgi_query {
     int  dir;
     int  has_size;
     int  size;
+    int  has_view;
+    int  gif;
 };
-
-static const char *tile_bg(int exp)
-{
-    switch (exp) {
-    case 0:  return "#b9ad9c";
-    case 1:  return "#eee4da";
-    case 2:  return "#ede0c8";
-    case 3:  return "#f2b179";
-    case 4:  return "#f59563";
-    case 5:  return "#f67c5f";
-    case 6:  return "#f65e3b";
-    case 7:  return "#edcf72";
-    case 8:  return "#edcc61";
-    case 9:  return "#edc850";
-    case 10: return "#edc53f";
-    case 11: return "#edc22e";
-    default: return "#b58bdc";
-    }
-}
-
-static const char *tile_fg(int exp)
-{
-    if (exp == 0)
-        return "#b9ad9c";
-    if (exp <= 2 || (exp >= 7 && exp <= 10))
-        return "#4b4436";
-    return "#fff8ee";
-}
 
 static void head(const char *title)
 {
@@ -154,48 +129,16 @@ static int parse_query(struct cgi_query *q)
             if (digit_string(eq, T89_MINSIZE, T89_MAXSIZE, &q->size) < 0)
                 return -1;
             q->has_size = 1;
+        } else if (strcmp(p, "v") == 0) {
+            if (strcmp(eq, "gif") == 0)
+                q->gif = 1;
+            else
+                return -1;
+            q->has_view = 1;
         }
         p = amp == 0 ? 0 : amp + 1;
     }
     return 0;
-}
-
-static void board(const struct t89_game *g)
-{
-    char t[12];
-    int r, c, exp, cell, table_width;
-    int px = CGI_BOARD_PX;
-
-    cell = (px - (g->size + 1) * 4) / g->size;
-    if (cell < 24)
-        cell = 24;
-    table_width = g->size * cell + (g->size + 1) * 4;
-    /* Netscape 4 does not paint a table's own cell-spacing gaps; the wrapper
-       cell is what makes the tray visible around the board there. */
-    printf("<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0><TR><TD "
-           "BGCOLOR=\"#d8cebd\">\n");
-    printf("<TABLE BORDER=0 CELLPADDING=4 CELLSPACING=4 WIDTH=%d "
-           "BGCOLOR=\"#d8cebd\"><TR>\n", table_width);
-    for (r = 0; r < g->size; r++) {
-        if (r > 0)
-            printf("</TR><TR>\n");
-        for (c = 0; c < g->size; c++) {
-            exp = g->cell[r * g->size + c];
-            f89_tile(t, exp);
-            printf("<TD WIDTH=%d HEIGHT=%d ALIGN=CENTER VALIGN=MIDDLE "
-                   "BGCOLOR=\"%s\">", cell, cell, tile_bg(exp));
-            if (exp != 0) {
-                int fs = strlen(t) <= 2 ? 5 : (cell >= 64 ? 4 : 3);
-                printf("<FONT SIZE=%d COLOR=\"%s\"><B>%s</B></FONT>",
-                       fs, tile_fg(exp), t);
-            } else {
-                printf("&nbsp;");
-            }
-            printf("</TD>\n");
-        }
-    }
-    printf("</TR></TABLE>\n");
-    printf("</TD></TR></TABLE>\n");
 }
 
 static void move_link(const char *save, const char *dir, const char *label)
@@ -220,24 +163,48 @@ static void move_buttons(const char *save)
     printf("</TR></TABLE>\n");
 }
 
+static void gif_board(const struct t89_game *g)
+{
+    static unsigned char pixels[B89_BOARD_W * B89_BOARD_H];
+    GifWriter gw;
+    int y;
+
+    printf("Content-Type: image/gif\n");
+    printf("Cache-Control: public, max-age=31536000\n");
+    printf("Pragma: public\n\n");
+    b89_render(g, pixels);
+    if (!gif_begin(&gw, stdout, B89_BOARD_W, B89_BOARD_H, b89_palette()))
+        return;
+    for (y = 0; y < B89_BOARD_H; y++) {
+        if (!gif_write_row(&gw, pixels + y * B89_BOARD_W))
+            return;
+    }
+    gif_end(&gw);
+}
+
 static void page(const struct t89_game *g, const char *save, int blocked)
 {
     char best[12];
+    const char *move_word;
     int over, won;
 
     f89_tile(best, t89_best(g));
+    move_word = g->moves == 1 ? "move" : "moves";
     over = t89_over(g);
     won = t89_won(g);
     head("2089");
 
-    printf("<CENTER><TABLE WIDTH=680 BORDER=0 CELLPADDING=14 CELLSPACING=0 "
+    printf("<CENTER><TABLE WIDTH=680 BORDER=0 CELLPADDING=0 CELLSPACING=0 "
            "BGCOLOR=\"#fbf7ef\"><TR><TD>\n");
-    printf("<CENTER><FONT SIZE=6 COLOR=\"#2b2620\"><B>2089</B></FONT><BR>\n");
-    printf("<FONT SIZE=2>2048 for one PowerPC 604e</FONT><BR>\n");
-    printf("<FONT SIZE=1 COLOR=\"#8a7e6e\">AIX 4.3.3 / 250 MHZ 604E</FONT></CENTER>\n");
-    printf("<HR>\n");
-
+    printf("<IMG SRC=\"banner.gif?v=1\" WIDTH=680 HEIGHT=120 BORDER=0 ALT=\"2089\">\n");
+    printf("<TABLE WIDTH=680 BORDER=0 CELLPADDING=0 CELLSPACING=0 "
+           "BGCOLOR=\"#fbf7ef\"><TR><TD>\n");
     printf("<TABLE WIDTH=\"100%%\" BORDER=0 CELLPADDING=0 CELLSPACING=0 "
+           "BGCOLOR=\"#fbf7ef\"><TR><TD>&nbsp;&nbsp;\n");
+    printf("<FONT SIZE=1 COLOR=\"#6b6256\">[ <A HREF=\"/\">deepseek</A> | "
+           "<B>2089</B> ]</FONT>\n");
+    printf("</TD></TR></TABLE>\n");
+    printf("<TABLE WIDTH=\"100%%\" BORDER=0 CELLPADDING=6 CELLSPACING=0 "
            "BGCOLOR=\"#f3eadc\"><TR><TD><FONT SIZE=2>\n");
     if (won)
         printf("<B>You reached 2048.</B>");
@@ -249,32 +216,37 @@ static void page(const struct t89_game *g, const char *save, int blocked)
         printf("<B>Your move.</B>");
     printf(" &nbsp;|&nbsp; Score <B><FONT COLOR=\"#a95d2a\">%lu</FONT></B>",
            g->score);
-    printf(" &nbsp;|&nbsp; Top tile <B>%s</B> &nbsp;|&nbsp; %lu moves",
-           best, g->moves);
-    printf("</FONT></TD></TR></TABLE><BR>\n");
+    printf(" &nbsp;|&nbsp; Top tile <B>%s</B> &nbsp;|&nbsp; %lu %s",
+           best, g->moves, move_word);
+    printf("</FONT></TD></TR></TABLE>\n");
 
-    printf("<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=\"100%%\"><TR>\n");
-    printf("<TD VALIGN=TOP WIDTH=360>\n");
-    board(g);
+    printf("<TABLE WIDTH=\"100%%\" BORDER=0 CELLPADDING=18 CELLSPACING=0>"
+           "<TR><TD>\n");
+    printf("<TABLE BORDER=0 CELLPADDING=0 CELLSPACING=0 WIDTH=\"100%%\">"
+           "<TR>\n");
+    printf("<TD VALIGN=TOP WIDTH=400>\n");
+    printf("<IMG SRC=\"%s?s=%s&amp;v=gif\" WIDTH=400 HEIGHT=400 BORDER=0 "
+           "ALT=\"2089 board\">\n", cgi_self, save);
     printf("</TD><TD VALIGN=TOP WIDTH=20>&nbsp;</TD><TD VALIGN=TOP>\n");
-
     printf("<FONT SIZE=1 COLOR=\"#8a7e6e\">THIS GAME</FONT><BR>\n");
-    printf("<FONT SIZE=5 COLOR=\"#a95d2a\"><B>%lu</B></FONT><BR>\n", g->score);
-    printf("<FONT SIZE=1 COLOR=\"#7a6f60\">%lu moves &middot; top tile %s</FONT>\n",
-           g->moves, best);
+    printf("<FONT SIZE=6 COLOR=\"#a95d2a\"><B>%lu</B></FONT><BR>\n", g->score);
+    printf("<FONT SIZE=1 COLOR=\"#7a6f60\">%lu %s &middot; top tile %s</FONT>\n",
+           g->moves, move_word, best);
     printf("<BR><BR><FONT SIZE=1 COLOR=\"#8a7e6e\">MOVE</FONT><BR>\n");
     move_buttons(save);
-    printf("<BR><A HREF=\"%s?n=4\"><B>New game</B></A>\n", cgi_self);
+    printf("<BR><A HREF=\"%s?n=4\"><B>New game</B></A><BR>\n", cgi_self);
+    printf("<A HREF=\"how.html\">How to play</A>\n");
     printf("<BR><BR><FONT SIZE=1 COLOR=\"#5e5548\">\n");
     printf("<B>No JavaScript. No cookies.</B> The whole game is in the link.\n");
     printf("<BR><BR>Save: <FONT FACE=\"Courier New,Courier\" SIZE=1>%s</FONT>\n",
            save);
     printf("</FONT>\n");
-
+    printf("</TD></TR></TABLE>\n");
     printf("</TD></TR></TABLE>\n");
     printf("<HR><FONT SIZE=1 COLOR=\"#8a7e6e\">2089 %s &middot; engine by Claude Opus 5.5 "
            "&middot; web front end by DeepSeek V4.1 Flash 1017</FONT>\n",
            T89_VERSION);
+    printf("</TD></TR></TABLE>\n");
     printf("</TD></TR></TABLE></CENTER>\n");
     foot();
 }
@@ -309,6 +281,10 @@ int main(void)
     if (q.has_move) {
         if (!t89_move(&g, q.dir, &r))
             blocked = 1;
+    }
+    if (q.has_view && q.gif) {
+        gif_board(&g);
+        return 0;
     }
     if (t89_save(&g, save, sizeof save) < 0) {
         bad_request("The game could not be saved.");
