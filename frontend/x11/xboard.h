@@ -37,6 +37,11 @@ struct x89_board {
     int colour;                 /* 1 to draw in colour (only if hascolour) */
     int hascolour;              /* 1 if the colours could be allocated */
     unsigned long ui[X89_NAMED], tile[X89_TILES], black, white;
+    unsigned long text[X89_TILES];  /* the number on each tile */
+    /* Motif-style bevels, if bevel is set: tiles raised, empty cells sunken,
+       with these top and bottom shadows (from XmGetColors, say). */
+    int bevel;
+    unsigned long tilets[X89_TILES], tilebs[X89_TILES], emptyts, emptybs;
     Pixmap grey;                /* a 50% stipple, for the mono board */
     int x, y, side;             /* where the board is, after x89_place */
     int cell, gap;
@@ -45,8 +50,9 @@ struct x89_board {
 /*
  * Get ready to draw on screen of dpy: tile fonts, colours (all or none, in
  * the default colormap), a GC and the stipple, made for drawable d (any
- * window on that screen).  Colour is on if the display has it.  Returns -1
- * if the server has no fonts at all.
+ * window on that screen).  Colour is on if the display has it, bevels off.
+ * Returns -1 if the server has no fonts at all.  A frontend may change the
+ * colours afterwards (ui[X89_BOARD], ui[X89_EMPTY], tile[], text[]).
  */
 int x89_open(struct x89_board *b, Display *dpy, int screen, Drawable d);
 

@@ -66,8 +66,11 @@ Two programs play in a window of their own under the X Window System, sharing th
 board code in `frontend/x11`:
 
 - `x2089` (`frontend/x11/xlib`) needs only Xlib (`-lX11`), so it builds wherever X11 does.
-- `xm2089` (`frontend/x11/motif`) is a Motif application: a menu bar, dialogs for new
-  games, save strings and loading a game, and under CDE the session's colours and fonts.
+- `xm2089` (`frontend/x11/motif`) is a Motif application in the style of the CDE desktop's
+  own tools: menus, the scores in sunken frames, tiles raised with Motif bevels, arrow
+  buttons to play with the mouse, a status line, and dialogs to start a new game, open
+  and save games as files and copy or paste save strings. Its tiles can take the colours
+  of the CDE palette, following Style Manager (`-colours desktop`).
 
 ```sh
 make x11                    # x2089, and xm2089 if Motif can be found
@@ -88,7 +91,7 @@ cd frontend/x11/xlib && xmkmf && make       # x2089 alone, without Motif
 Both take the usual X options (`-display`, `-geometry`; `x2089` also `-fn` for its text
 font, `xm2089` everything Xt takes) and `-mono`, besides `-u`, `-s`, `-r` and `-l`. As
 resources: `x2089.geometry`, `x2089.font`, `x2089.mono: true`; `XM2089*undo: true`,
-`XM2089*mono: true`. Windows can be resized. They play in the original game's colours
+`XM2089*colours: game`, `desktop` or `mono`. Windows can be resized. They play in the original game's colours
 where the display has them, and in black and white otherwise (`c` switches). The keys
 are the terminal frontends' (`?` lists them), the best scores are kept in the same
 `~/.2089`, and quitting prints the command that carries on the game.

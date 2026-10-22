@@ -116,8 +116,10 @@ static int allocate(struct x89_board *b, int screen)
     }
     for (i = 0; i < X89_NAMED; i++)
         b->ui[i] = got[i];
-    for (i = 0; i < X89_TILES; i++)
+    for (i = 0; i < X89_TILES; i++) {
         b->tile[i] = got[X89_NAMED + i];
+        b->text[i] = b->ui[i < 2 ? X89_DARK : X89_LIGHT];   /* dark on 2 and 4 */
+    }
     return 1;
 }
 
@@ -136,6 +138,7 @@ int x89_open(struct x89_board *b, Display *dpy, int screen, Drawable d)
     b->grey = XCreateBitmapFromData(dpy, d, bits, 2, 2);
     b->x = b->y = b->side = 0;
     b->cell = b->gap = 1;
+    b->bevel = 0;
     return 0;
 }
 
@@ -162,6 +165,34 @@ static void box(struct x89_board *b, Drawable d, int x, int y, int w, int h,
     XFillRectangle(b->dpy, d, b->gc, x, y, (unsigned int) w, (unsigned int) h);
 }
 
+/*
+ * A Motif shadow around a rectangle, t pixels thick: light (ts) on the top
+ * and left and dark (bs) on the bottom and right for a raised one, the other
+ * way round for a sunken one, meeting on the diagonal at the corners.
+ */
+static void shadow(struct x89_board *b, Drawable d, int x, int y, int w, int h, int t,
+                   unsigned long ts, unsigned long bs)
+{
+    XPoint p[6];
+
+    p[0].x = (short) x;           p[0].y = (short) y;
+    p[1].x = (short) (x + w);     p[1].y = (short) y;
+    p[2].x = (short) (x + w - t); p[2].y = (short) (y + t);
+    p[3].x = (short) (x + t);     p[3].y = (short) (y + t);
+    p[4].x = (short) (x + t);     p[4].y = (short) (y + h - t);
+    p[5].x = (short) x;           p[5].y = (short) (y + h);
+    XSetForeground(b->dpy, b->gc, ts);
+    XFillPolygon(b->dpy, d, b->gc, p, 6, Nonconvex, CoordModeOrigin);
+    p[0].x = (short) (x + w);     p[0].y = (short) (y + h);
+    p[1].x = (short) x;           p[1].y = (short) (y + h);
+    p[2].x = (short) (x + t);     p[2].y = (short) (y + h - t);
+    p[3].x = (short) (x + w - t); p[3].y = (short) (y + h - t);
+    p[4].x = (short) (x + w - t); p[4].y = (short) (y + t);
+    p[5].x = (short) (x + w);     p[5].y = (short) y;
+    XSetForeground(b->dpy, b->gc, bs);
+    XFillPolygon(b->dpy, d, b->gc, p, 6, Nonconvex, CoordModeOrigin);
+}
+
 /* The tallest tile font whose text fits the cell, trying 2^n if the number
    doesn't fit any; the smallest if nothing does. */
 static XFontStruct *fit(struct x89_board *b, char *s, int exp)
@@ -179,8 +210,9 @@ static XFontStruct *fit(struct x89_board *b, char *s, int exp)
 }
 
 /*
- * One tile.  In colour, the original's.  In mono, as the curses frontend's
- * mono style: 2 and 4 outlined, 8 to 64 outlined heavily, 128 to 1024 in
+ * One tile.  In colour, the original's (or whatever the frontend set),
+ * raised with a bevel if asked.  In mono, as the curses frontend's mono
+ * style: 2 and 4 outlined, 8 to 64 outlined heavily, 128 to 1024 in
  * reverse, 2048 and up in reverse with a white frame.
  */
 static void tile(struct x89_board *b, Drawable d, int r, int c, int exp)
@@ -191,14 +223,19 @@ static void tile(struct x89_board *b, Drawable d, int r, int c, int exp)
     unsigned long ink;
     XFontStruct *f;
     char s[16];
+    int bevel = b->colour && b->bevel ? (cell >= 60 ? 3 : cell >= 20 ? 2 : 1) : 0;
 
     if (exp == 0) {
         box(b, d, x, y, cell, cell, b->colour ? b->ui[X89_EMPTY] : b->white);
+        if (bevel)
+            shadow(b, d, x, y, cell, cell, bevel, b->emptybs, b->emptyts);
         return;
     }
     if (b->colour) {
         box(b, d, x, y, cell, cell, b->tile[t]);
-        ink = exp <= 2 ? b->ui[X89_DARK] : b->ui[X89_LIGHT];
+        if (bevel)
+            shadow(b, d, x, y, cell, cell, bevel, b->tilets[t], b->tilebs[t]);
+        ink = b->text[t];
     } else if (exp <= 6) {
         box(b, d, x, y, cell, cell, b->black);
         w = exp <= 2 ? thin : thick;
