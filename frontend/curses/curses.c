@@ -167,22 +167,25 @@ static void grid(void)
 /* Video attributes for a tile in the current style. */
 /*
  * Tile colours, after the original game's (Cirulli's style/main.css), one
- * row per tile from 2 to 2048 and then all larger ("super") tiles, which
- * the original also draws alike.  Each entry is { background, text, bold }.
- * With 256 colours, the nearest xterm-256 colour to each (by CIE76 distance;
- * the gold tiles share, as they nearly do in the original); with 16 or 8,
- * the original's families (beige, orange, red, gold, dark) in ANSI colours.
- * Empty cells and the board keep the terminal's own background.
+ * row per tile from 2 to 2048; then the greens common to the later mobile
+ * versions of the game for 4096, 8192, and all larger tiles alike (the
+ * original draws everything past 2048 in near-black).  Each entry is
+ * { background, text, bold }.  With 256 colours, the nearest xterm-256
+ * colour to each (by CIE76 distance; the gold tiles share, as they nearly
+ * do in the original); with 16 or 8, the families (beige, orange, red,
+ * gold, green) in ANSI colours.  Empty cells and the board keep the
+ * terminal's own background.
  */
-#define TILES 12
+#define TILES 14
 static const short pal256[TILES][3] = {
     {254, 242, 0}, {187, 242, 0}, {216, 255, 0}, {209, 255, 0}, {209, 255, 0},
     {203, 255, 0}, {222, 255, 0}, {221, 255, 0}, {221, 255, 0}, {221, 255, 0},
-    {178, 255, 0}, {237, 255, 0}
+    {178, 255, 0}, {78, 255, 0}, {35, 255, 0}, {29, 255, 0}
 };
 static const short pal16[TILES][3] = {
     {15, 0, 0}, {7, 0, 0}, {3, 0, 0}, {9, 15, 0}, {1, 15, 0}, {1, 15, 1},
-    {11, 0, 0}, {11, 0, 0}, {11, 0, 0}, {11, 0, 0}, {11, 0, 1}, {0, 15, 0}
+    {11, 0, 0}, {11, 0, 0}, {11, 0, 0}, {11, 0, 0}, {11, 0, 1},
+    {10, 0, 0}, {2, 15, 0}, {2, 15, 1}
 };
 static const short pal8[TILES][3] = {
     {COLOR_WHITE, COLOR_BLACK, 0}, {COLOR_WHITE, COLOR_BLACK, 0},
@@ -190,7 +193,8 @@ static const short pal8[TILES][3] = {
     {COLOR_RED, COLOR_WHITE, 0}, {COLOR_RED, COLOR_WHITE, 1},
     {COLOR_YELLOW, COLOR_BLACK, 0}, {COLOR_YELLOW, COLOR_BLACK, 0},
     {COLOR_YELLOW, COLOR_BLACK, 0}, {COLOR_YELLOW, COLOR_BLACK, 0},
-    {COLOR_YELLOW, COLOR_BLACK, 1}, {COLOR_BLACK, COLOR_WHITE, 0}
+    {COLOR_YELLOW, COLOR_BLACK, 1}, {COLOR_GREEN, COLOR_BLACK, 0},
+    {COLOR_GREEN, COLOR_WHITE, 0}, {COLOR_GREEN, COLOR_WHITE, 1}
 };
 static const short (*palette)[3] = pal8;    /* the one in use */
 static short tilepair[TILES];               /* its colour pair for each tile */
@@ -468,8 +472,8 @@ static int cookies(void)
    unless -m or -p), forced if it was asked for explicitly. */
 /*
  * Colour pairs for the palette in use, one for each different pair of
- * colours (tiles with the same colours share one: 4 pairs for 8 colours,
- * 7 for 16, 9 for 256), so that terminals with few pairs (dtterm has 8)
+ * colours (tiles with the same colours share one: 5 pairs for 8 colours,
+ * 8 for 16, 11 for 256), so that terminals with few pairs (dtterm has 8)
  * still get colour.  Returns 0 if the terminal hasn't enough pairs.
  */
 static int pairs(void)

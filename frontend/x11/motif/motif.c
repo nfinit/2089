@@ -220,7 +220,7 @@ static void desktopcolours(void)
     s->emptyts = set[primary].ts;
     s->emptybs = set[primary].bs;
     for (i = 0; i < X89_TILES; i++) {
-        j = i < 6 && i < n ? order[i] : i < X89_TILES - 1 || n == 0 ? active
+        j = i < 6 && i < n ? order[i] : i < 11 || n == 0 ? active  /* to 2048 */
             : order[n - 1];
         s->tile[i] = set[j].bg;
         s->text[i] = set[j].fg;
