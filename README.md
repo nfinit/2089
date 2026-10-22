@@ -1,6 +1,8 @@
 2089: An industry-standard implementation of 2048
 ---------------------------------------------------------------------------
 
+![2089 on the CDE desktop of AIX 4.3.3: the curses and line-mode frontends in dtterm, xm2089, and 2089 in Application Manager](doc/cde-desktop.png)
+
 2089 is a port of [2048](https://github.com/gabrielecirulli/2048) to standard C89 with a modular architecture that allows a core engine (`2089.c`) to support multiple frontends, such that it can be easily ported to a wide variety of systems and interfaces.
 
 2089 is currently developed and tested on Linux (with GCC) and AIX 4.3.3 (with XL C,) with legacy terminal support tested using Ericom's PowerTerm 525 on Windows NT.
