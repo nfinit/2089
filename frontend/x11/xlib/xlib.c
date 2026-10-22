@@ -168,7 +168,7 @@ static void help(void)
         if (lines[i][0])
             text(x, y, lines[i]);
     if (brd.hascolour) {
-        text(x, y, "c  colour or black and white");
+        text(x, y, "c  color or black and white");
         y += lh;
     }
     text(x, y, undook ? "u  undo the last move" : "(undo is off: start with -u)");
@@ -351,7 +351,7 @@ static void usage(int status)
     puts("  -display host:n  the X display to use (default $DISPLAY)");
     puts("  -geometry WxH+X+Y  the window's size and place");
     puts("  -fn font       the font for the score and messages");
-    puts("  -mono          black and white, even on a colour display");
+    puts("  -mono          black and white, even on a color display");
     f89_usage();
     puts("  -v             print the version");
     exit(status);

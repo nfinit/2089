@@ -23,7 +23,7 @@ you like, until no move is left.
 * <link HowToPlay>How to Play<\link>
 * <link Keys>Keys and Buttons<\link>
 * <link Menus>Menus<\link>
-* <link Colours>Colours<\link>
+* <link Colors>Colors<\link>
 * <link SavedGames>Saved Games<\link>
 * <link Starting>Starting 2089 from a Command<\link>
 <\list>
@@ -58,7 +58,7 @@ keypad: move.
 * <computer>u<\computer>: undo the last move, if undo is on.
 * <computer>n<\computer>: start a new game.
 * <computer>p<\computer>: show the save string.
-* <computer>c<\computer>: the next colour scheme.
+* <computer>c<\computer>: the next color scheme.
 * <computer>?<\computer>: the keys.
 * <computer>q<\computer>: exit.
 <\list>
@@ -85,26 +85,26 @@ your best score on each size of board, and the top tile in that game.
 Clear one to start that size afresh, or Clear All.  (Another 2089
 playing at the same time may still put back the score it knew.)
 * Options: Board Size, from 3 by 3 to 8 by 8, which starts a new game
-(asking first if one is under way); and the colours of the board (see
-<link Colours>Colours<\link>).  Save Options keeps the board size, the
-colours and the arrow buttons for the next time 2089 starts, in the file
+(asking first if one is under way); and the colors of the board (see
+<link Colors>Colors<\link>).  Save Options keeps the board size, the
+colors and the arrow buttons for the next time 2089 starts, in the file
 <computer>.xm2089<\computer> in your home directory.
 * Help: this help, the keys, help on using help, and about 2089.
 <\list>
 
 
-<s1 id=Colours>Colours
+<s1 id=Colors>Colors
 
-The Options menu has three colour schemes for the board.  The rest of
-the window always takes the desktop's colours.
+The Options menu has three color schemes for the board.  The rest of
+the window always takes the desktop's colors.
 
 <list bullet>
-* Game Colours: the colours of the original 2048, from beige to
+* Game Colors: the colors of the original 2048, from beige to
 orange to gold; then, past 2048, greens, blues and violets.  Turn off
-Extended Colours to have every tile past 2048 in the original's one
-dark colour instead, which also leaves those colours to other programs
+Extended Colors to have every tile past 2048 in the original's one
+dark color instead, which also leaves those colors to other programs
 on a display that has few.
-* Desktop Colours: the colours of your desktop palette.  Choose
+* Desktop Colors: the colors of your desktop palette.  Choose
 another palette in Style Manager, and the next time 2089 starts, its
 board will follow.
 * Black and White: tiles from outlined to reverse video as they grow,
@@ -138,10 +138,10 @@ squares across.
 same game.
 * <computer>-l<\computer> <emph>savestring<\emph>: play a saved game.
 * <computer>-arrows<\computer>: show the arrow buttons.
-* <computer>-colours<\computer> <computer>game<\computer>,
-<computer>desktop<\computer> or <computer>mono<\computer>: the colour
+* <computer>-colors<\computer> <computer>game<\computer>,
+<computer>desktop<\computer> or <computer>mono<\computer>: the color
 scheme.
-* <computer>+extended<\computer>: Extended Colours off.
+* <computer>+extended<\computer>: Extended Colors off.
 * A file name: open a saved game.
 <\list>
 

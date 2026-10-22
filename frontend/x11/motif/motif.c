@@ -100,7 +100,7 @@ static int known;                       /* if it was dealt here, not loaded */
 /* Application resources, settable as options. */
 struct settings {
     Boolean undo, mono, arrows, extended;
-    String colours;                     /* game, desktop or mono */
+    String colors;                      /* game, desktop or mono */
     int size;                           /* of new games, unless -s */
 };
 static struct settings res;
@@ -114,8 +114,8 @@ static XtResource resources[] = {
       XtOffsetOf(struct settings, arrows), XmRImmediate, (XtPointer) False },
     { (char *) "extended", (char *) "Extended", XmRBoolean, sizeof(Boolean),
       XtOffsetOf(struct settings, extended), XmRImmediate, (XtPointer) True },
-    { (char *) "colours", (char *) "Colours", XmRString, sizeof(String),
-      XtOffsetOf(struct settings, colours), XmRImmediate, (XtPointer) "game" },
+    { (char *) "colors", (char *) "Colors", XmRString, sizeof(String),
+      XtOffsetOf(struct settings, colors), XmRImmediate, (XtPointer) "game" },
     { (char *) "size", (char *) "Size", XmRInt, sizeof(int),
       XtOffsetOf(struct settings, size), XmRImmediate, (XtPointer) T89_SIZE }
 };
@@ -128,7 +128,8 @@ static XrmOptionDescRec options[] = {
     { (char *) "-arrows", (char *) ".arrows", XrmoptionNoArg, (XtPointer) "true" },
     { (char *) "-extended", (char *) ".extended", XrmoptionNoArg, (XtPointer) "true" },
     { (char *) "+extended", (char *) ".extended", XrmoptionNoArg, (XtPointer) "false" },
-    { (char *) "-colours", (char *) ".colours", XrmoptionSepArg, (XtPointer) 0 }
+    { (char *) "-colors", (char *) ".colors", XrmoptionSepArg, (XtPointer) 0 },
+    { (char *) "-colours", (char *) ".colors", XrmoptionSepArg, (XtPointer) 0 }  /* as was */
 };
 
 /* The options again, with -xrm, to put the command line back on top of
@@ -540,7 +541,7 @@ static void saveoptions(void)
     else {
         ok = fprintf(f, "! xm2089's options, from Options > Save Options.  Resources, as in\n"
                      "! ~/.Xdefaults: these win over those, the command line over these.\n"
-                     "%s.size: %d\n%s.colours: %s\n%s.mono: false\n"
+                     "%s.size: %d\n%s.colors: %s\n%s.mono: false\n"
                      "%s.extended: %s\n%s.arrows: %s\n", appname, game.size, appname,
                      scheme == MONO ? "mono" : scheme == DESKTOP ? "desktop" : "game", appname,
                      appname, res.extended ? "true" : "false",
@@ -556,7 +557,7 @@ static void saveoptions(void)
 static void finish(void)
 {
     sprintf(command, "%s %s%s%s%s", name, res.undo ? "-u " : "", res.arrows ? "-arrows " : "",
-            scheme == MONO ? "-mono " : scheme == DESKTOP ? "-colours desktop " : "",
+            scheme == MONO ? "-mono " : scheme == DESKTOP ? "-colors desktop " : "",
             res.extended ? "" : "+extended ");
     if (f89_bsave() < 0)
         fprintf(stderr, "%s: can't save the high score in %s\n", name, f89_bfile());
@@ -779,9 +780,7 @@ static void asknumber(void)
     if (!numberdialog) {
         numberdialog = XmCreatePromptDialog(top, (char *) "gameNumber", (ArgList) 0, 0);
         title(numberdialog, "2089 - New Game from Number");
-        settext(numberdialog, XmNselectionLabelString,
-                "Game number (0 to 4294967295): the same number\n"
-                "deals the same game, here or with 2089 -r.");
+        settext(numberdialog, XmNselectionLabelString, "Game Number (0 to 4294967295):");
         settext(numberdialog, XmNokLabelString, "New Game");
         XtUnmanageChild(XmSelectionBoxGetChild(numberdialog, XmDIALOG_HELP_BUTTON));
         XtAddCallback(numberdialog, XmNokCallback, numbered, (XtPointer) 0);
@@ -864,7 +863,6 @@ static void clearscores(Widget w, XtPointer client, XtPointer call)
 static void showscores(void)
 {
     static const char *head[4] = { "Board", "Best", "Top Tile", "" };
-    char text[300];
     Widget form, table, all;
     int n, i;
 
@@ -907,11 +905,7 @@ static void showscores(void)
         XtAddCallback(all, XmNactivateCallback, clearscores, (XtPointer) 0);
     }
     fillscores();
-    if (f89_bfile()[0])
-        sprintf(text, "Best scores, kept in %.250s:", f89_bfile());
-    else
-        strcpy(text, "Best scores, for this session only:");
-    settext(scoresdialog, XmNmessageString, text);
+    settext(scoresdialog, XmNmessageString, "Best scores across all boards");
     XtManageChild(scoresdialog);
 }
 
@@ -1045,8 +1039,8 @@ static void showkeys(void)
             "    u    undo (if started with -u)\n"
             "    n    new game\n"
             "    p    save string\n"
-            "    c    next colour scheme\n"
-            "    q    exit, printing the command that carries on");
+            "    c    next color scheme\n"
+            "    q    exit");
         only(keys, 1, 0, 0);
     }
     XtManageChild(keys);
@@ -1294,11 +1288,11 @@ static Widget menus(Widget parent)
         sizeitem[n] = item(sizes, text, '0' + n, 0, M_SIZE + n, 1);
     }
     separator(m);
-    schemeitem[GAME] = item(m, "Game Colours", 'G', "c", M_GAME, 1);
-    schemeitem[DESKTOP] = item(m, "Desktop Colours", 'D', "c", M_DESKTOP, 1);
+    schemeitem[GAME] = item(m, "Game Colors", 'G', "c", M_GAME, 1);
+    schemeitem[DESKTOP] = item(m, "Desktop Colors", 'D', "c", M_DESKTOP, 1);
     schemeitem[MONO] = item(m, "Black and White", 'B', "c", M_MONO, 1);
     separator(m);
-    extitem = item(m, "Extended Colours", 'E', 0, M_EXTENDED, CHECK);
+    extitem = item(m, "Extended Colors", 'E', 0, M_EXTENDED, CHECK);
     separator(m);
     item(m, "Save Options", 'O', 0, M_SAVEOPTS, 0);
 
@@ -1478,7 +1472,7 @@ static void saveyourself(Widget w, XtPointer client, XtPointer call)
     if (!res.extended)
         argv[argc++] = (char *) "+extended";
     if (scheme != GAME) {
-        argv[argc++] = (char *) "-colours";
+        argv[argc++] = (char *) "-colors";
         argv[argc++] = (char *) (scheme == MONO ? "mono" : "desktop");
     }
     argv[argc++] = (char *) "-l";
@@ -1503,14 +1497,14 @@ static void icon(void)
 
 static void usage(int status)
 {
-    printf("usage: %s [X options] [-mono] [-colours game|desktop|mono] [+extended]\n", name);
+    printf("usage: %s [X options] [-mono] [-colors game|desktop|mono] [+extended]\n", name);
     puts("              [-arrows] [-u] [-s size] [-r seed] [-l savestring] [-v] [-h] [file]");
     puts("  X options      -display, -geometry, -xrm and the rest");
-    puts("  -colours       the board's colours: the game's (the default), the");
+    puts("  -colors        the board's colors: the game's (the default), the");
     puts("                 desktop palette's (under CDE), or black and white");
-    puts("  -mono          black and white, even on a colour display");
-    puts("  +extended      tiles past 2048 in the original's one colour, not ours");
-    puts("                 (Options > Extended Colours; -extended for ours)");
+    puts("  -mono          black and white, even on a color display");
+    puts("  +extended      tiles past 2048 in the original's one color, not ours");
+    puts("                 (Options > Extended Colors; -extended for ours)");
     puts("  -arrows        show the arrow buttons (View > Arrow Buttons)");
     f89_usage();
     puts("  -v             print the version");
@@ -1595,8 +1589,8 @@ int main(int argc, char **argv)
     XmToggleButtonSetState(extitem, res.extended, False);
     showsize();
     showarrows(res.arrows);
-    usescheme(res.mono || strcmp(res.colours, "mono") == 0 ? MONO
-              : strcmp(res.colours, "desktop") == 0 ? DESKTOP : GAME);
+    usescheme(res.mono || strcmp(res.colors, "mono") == 0 ? MONO
+              : strcmp(res.colors, "desktop") == 0 ? DESKTOP : GAME);
 
     XtVaSetValues(top, XmNdeleteResponse, XmDO_NOTHING, (char *) 0);
     wmdelete = XmInternAtom(dpy, (char *) "WM_DELETE_WINDOW", False);

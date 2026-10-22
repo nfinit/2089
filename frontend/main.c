@@ -25,9 +25,9 @@ static void usage(int status)
     puts("            [-l savestring] [-v] [-h]");
     puts("  -t             line mode: one move per line, for any terminal");
     puts("  -k             compact: cells one line high (the default at 4800 baud or");
-    puts("                 less in colour or mono); in line mode, the compact display");
+    puts("                 less in color or mono); in line mode, the compact display");
     puts("  -K             not compact: tall cells even on a slow line, boxed display");
-    puts("  -m             mono: no colour, tiles in bold and reverse video");
+    puts("  -m             mono: no color, tiles in bold and reverse video");
     puts("  -p             plain: no video attributes at all (Wyse 50 and the like)");
     puts("  -a             draw boxes with + - | instead of line-drawing characters");
 #else
