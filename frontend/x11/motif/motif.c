@@ -1062,7 +1062,9 @@ static void helpvolume(const char *volume)
         return;
     }
     fclose(f);
-    sprintf(cmd, "%s -helpVolume %s &", viewer, volume);
+    /* From /: the viewer takes a file named as the volume in the directory
+       it runs in for the volume itself (/usr/local/bin/2089, say). */
+    sprintf(cmd, "cd / && %s -helpVolume %s &", viewer, volume);
     if (system(cmd) != 0)
         showkeys();
 }
