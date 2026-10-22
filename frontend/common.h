@@ -120,6 +120,27 @@ void f89_usage(void);
    and return -1. */
 int f89_start(struct t89_game *g, const struct f89_options *o, const char *name);
 
+/*
+ * Best scores, one for each board size, as the original game shows "best"
+ * next to the score.  Kept for the user in $HOME/.2089, or in the file
+ * T89_SCORES names at compile time: one save string per line, the game as it
+ * stood at its best score, so that a score is only what t89_load accepts (and
+ * the game can be looked at again with -l).  Lines that don't load are
+ * skipped.  Without a file, scores are kept for the session only.  Several
+ * players sharing one file would need setgid and locking: not done here.
+ *
+ * f89_bopen reads the file; f89_bnote takes a game as the record if it beats
+ * the one for its size; f89_btop is the record for a size; f89_bsave writes
+ * the records if any changed (merging what another 2089 may have written
+ * since), returning -1 if the file can't be written; f89_bfile is its name,
+ * "" if there is none.
+ */
+void f89_bopen(void);
+void f89_bnote(const struct t89_game *g);
+unsigned long f89_btop(int size);
+int f89_bsave(void);
+const char *f89_bfile(void);
+
 /* Print how to carry on later: "to carry on later: <command>-l <save>".
    command is the program and its options, ending in a space. */
 void f89_resume(const struct t89_game *g, const char *command);

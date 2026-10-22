@@ -204,6 +204,81 @@ int f89_start(struct t89_game *g, const struct f89_options *o, const char *name)
     return 0;
 }
 
+static char scorefile[256];             /* "" if there is none */
+static char record[T89_MAXSIZE + 1][T89_SAVELEN];
+static unsigned long recscore[T89_MAXSIZE + 1];
+static int dirty = 0;                   /* 1 if a record is not in the file */
+
+/* Read the file, keeping each record that beats the one held. */
+static void readscores(void)
+{
+    struct t89_game t;
+    char buf[T89_SAVELEN + 2];
+    FILE *f;
+
+    if (!scorefile[0] || (f = fopen(scorefile, "r")) == 0)
+        return;
+    while (fgets(buf, sizeof buf, f)) {
+        buf[strcspn(buf, "\r\n")] = '\0';    /* \r too: a file from DOS */
+        if (t89_load(&t, buf) == 0 && t.score > recscore[t.size]) {
+            recscore[t.size] = t.score;
+            strcpy(record[t.size], buf);
+        }
+    }
+    fclose(f);
+}
+
+void f89_bopen(void)
+{
+#ifdef T89_SCORES
+    strcpy(scorefile, T89_SCORES);
+#else
+    const char *home = getenv("HOME");
+
+    if (home && *home && strlen(home) < sizeof scorefile - 8)
+        sprintf(scorefile, "%s/.2089", home);
+#endif
+    readscores();
+}
+
+void f89_bnote(const struct t89_game *g)
+{
+    if (g->score > recscore[g->size]
+        && t89_save(g, record[g->size], T89_SAVELEN) > 0) {
+        recscore[g->size] = g->score;
+        dirty = 1;
+    }
+}
+
+unsigned long f89_btop(int size)
+{
+    return size >= T89_MINSIZE && size <= T89_MAXSIZE ? recscore[size] : 0;
+}
+
+int f89_bsave(void)
+{
+    FILE *f;
+    int n, ok;
+
+    if (!dirty || !scorefile[0])
+        return 0;
+    readscores();
+    if ((f = fopen(scorefile, "w")) == 0)
+        return -1;
+    for (n = T89_MINSIZE; n <= T89_MAXSIZE; n++)
+        if (recscore[n] > 0)
+            fprintf(f, "%s\n", record[n]);
+    ok = fclose(f) == 0;
+    if (ok)
+        dirty = 0;
+    return ok ? 0 : -1;
+}
+
+const char *f89_bfile(void)
+{
+    return scorefile;
+}
+
 void f89_resume(const struct t89_game *g, const char *command)
 {
     char save[T89_SAVELEN];
