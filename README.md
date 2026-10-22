@@ -52,6 +52,30 @@ Full screen, the best score for each board size is kept in `~/.2089`, as the sav
 string of the game that made it (so `2089 -l` brings it back). To keep it somewhere
 else, build with `-DT89_SCORES='"/path/to/file"'`.
 
+### X11
+
+`frontend/x11/x2089` plays in a window of its own under the X Window System. It is
+written for Xlib alone (`-lX11`), with no toolkit, so it builds wherever X11 does:
+
+```sh
+make x11                                            # frontend/x11/x2089
+make x11 X11INC=-I/usr/X11R6/include X11LIB="-L/usr/X11R6/lib -lX11"
+```
+
+or the X way, with the X installation's own `imake` rules (on AIX, with
+`/usr/vac/bin` on `PATH`):
+
+```sh
+cd frontend/x11 && xmkmf && make
+```
+
+It takes the usual X options (`-display`, `-geometry`, `-fn` for the text font) and
+`-mono`, besides `-u`, `-s`, `-r` and `-l`, and reads the resources `x2089.geometry`,
+`x2089.font` and `x2089.mono` (`true`). The window can be resized. It plays in the
+original game's colours where the display has them, and in black and white otherwise;
+`c` switches. The keys are the terminal frontends' (`?` lists them), the best scores
+are kept in the same `~/.2089`, and quitting prints the command that carries on the game.
+
 ## Other C implementations of 2048
 
 There's much prior art inspiring 2089, which is far from the first attempt to implement this game in C, though it is perhaps the first attempt at an explicitly "universal" implementation capable of supporting multiple platforms, interfaces and compilers. A few other projects include:

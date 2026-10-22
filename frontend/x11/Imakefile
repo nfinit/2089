@@ -1,0 +1,28 @@
+XCOMM Imakefile for x2089, the Xlib frontend of 2089: the X way to build it,
+XCOMM with the X installation's own compiler, flags and libraries.
+XCOMM
+XCOMM     xmkmf
+XCOMM     make
+XCOMM
+XCOMM (On AIX, imake's rules call the compiler cc_r: have /usr/vac/bin on
+XCOMM PATH.)  The shared sources are linked in from the directories above,
+XCOMM as imake does for sources kept elsewhere.
+XCOMM
+XCOMM Author: Claude Opus 5.5 (claude-opus-5-5), October 2026.
+XCOMM MIT License; see LICENSE.
+
+        DEPLIBS = $(DEPXLIB)
+LOCAL_LIBRARIES = $(XLIB)
+       INCLUDES = -I. -I.. -I../..
+           SRCS = x11.c common.c 2089.c rng89.c
+           OBJS = x11.o common.o 2089.o rng89.o
+
+AllTarget(x2089)
+
+LinkSourceFile(common.c,..)
+LinkSourceFile(2089.c,../..)
+LinkSourceFile(rng89.c,../..)
+
+NormalProgramTarget(x2089,$(OBJS),$(DEPLIBS),$(LOCAL_LIBRARIES),NullParameter)
+InstallProgram(x2089,$(BINDIR))
+DependTarget()

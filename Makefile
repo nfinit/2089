@@ -4,16 +4,20 @@
 #                        curses frontend if a curses library can be found
 #   make text            the text frontend and the tests only
 #   make curses          the curses frontend, without looking first
+#   make x11             the X11 frontend, frontend/x11/x2089 (Xlib only):
+#                        make x11 X11INC=-I/usr/X11R6/include X11LIB="-L/usr/X11R6/lib -lX11"
 #   make run             build, then play: the full program if it was built,
 #                        else the text frontend (make run ARGS="-u -s 5")
 #   make check           run the tests: the core's and the frontends' shared code
 #   make CC=c89 CFLAGS=-O
 #
-# Developer checks (gcc): make strict
+# Developer checks (gcc): make strict, make strict-x11
 
 CC     = cc
 CFLAGS = -O
 CURSES = -lcurses
+X11INC =
+X11LIB = -lX11
 
 CORE = 2089.o rng89.o
 FRONT = frontend/common.o frontend/text/text.o
@@ -73,6 +77,12 @@ frontend/curses/2089: frontend/main.c frontend/curses/curses.c frontend/common.h
 	$(CC) $(CFLAGS) -DT89_CURSES -I. -Ifrontend -o $@ frontend/main.c \
 	    frontend/curses/curses.c $(FRONT) $(CORE) $(CURSES)
 
+x11: frontend/x11/x2089
+
+frontend/x11/x2089: frontend/x11/x11.c frontend/common.h 2089.h $(CORE) frontend/common.o
+	$(CC) $(CFLAGS) $(X11INC) -I. -Ifrontend -o $@ frontend/x11/x11.c \
+	    frontend/common.o $(CORE) $(X11LIB)
+
 test/t89test: test/test.c 2089.h $(CORE)
 	$(CC) $(CFLAGS) -I. -o $@ test/test.c $(CORE)
 
@@ -125,5 +135,10 @@ strict:
 	/tmp/2089-test
 	/tmp/2089-front
 
+# The X11 frontend under the same warnings (needs the X headers).
+strict-x11:
+	gcc $(STRICT) $(X11INC) -I. -Ifrontend -o /tmp/2089-x11 frontend/x11/x11.c \
+	    frontend/common.c 2089.c rng89.c $(X11LIB)
+
 clean:
-	rm -f $(CORE) $(FRONT) frontend/text/2089 frontend/curses/2089 frontend/curses/probe test/t89test test/front test/replay
+	rm -f $(CORE) $(FRONT) frontend/text/2089 frontend/curses/2089 frontend/curses/probe frontend/x11/x2089 test/t89test test/front test/replay

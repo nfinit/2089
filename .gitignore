@@ -64,3 +64,10 @@ test/front
 test/replay
 frontend/curses/2089
 frontend/curses/probe
+frontend/x11/x2089
+frontend/x11/Makefile
+frontend/x11/Makefile.bak
+frontend/x11/*.o
+frontend/x11/common.c
+frontend/x11/2089.c
+frontend/x11/rng89.c
