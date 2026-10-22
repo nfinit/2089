@@ -84,12 +84,13 @@ static void loadfonts(struct x89_board *b)
  * board, an empty cell, the two text colours, and each tile from 2 to 2048.
  * The original draws every larger tile alike, in near-black; past 2048
  * these are the greens common to the later mobile versions of the game,
- * mint for 4096 to dark green for 16384 and up.
+ * mint for 4096 to dark green for 16384 and up, turned 10 degrees of hue
+ * toward blue (as the original's own colours sit off their primaries).
  */
 static const char *tilename[X89_TILES] = {
     "#eee4da", "#ede0c8", "#f2b179", "#f59563", "#f67c5f", "#f65e3b",
     "#edcf72", "#edcc61", "#edc850", "#edc53f", "#edc22e",
-    "#5fda93", "#25bb65", "#238c50"
+    "#5fdaa8", "#25bb7e", "#238c62"
 };
 static const char *uiname[X89_NAMED] = {
     "#faf8ef", "#bbada0", "#cdc1b4", "#776e65", "#f9f6f2"

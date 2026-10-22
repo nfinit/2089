@@ -168,8 +168,9 @@ static void grid(void)
 /*
  * Tile colours, after the original game's (Cirulli's style/main.css), one
  * row per tile from 2 to 2048; then the greens common to the later mobile
- * versions of the game for 4096, 8192, and all larger tiles alike (the
- * original draws everything past 2048 in near-black).  Each entry is
+ * versions of the game, a little bluer (as xboard.c has them), for 4096,
+ * 8192, and all larger tiles alike (the original draws everything past
+ * 2048 in near-black).  Each entry is
  * { background, text, bold }.  With 256 colours, the nearest xterm-256
  * colour to each (by CIE76 distance; the gold tiles share, as they nearly
  * do in the original); with 16 or 8, the families (beige, orange, red,
@@ -180,7 +181,7 @@ static void grid(void)
 static const short pal256[TILES][3] = {
     {254, 242, 0}, {187, 242, 0}, {216, 255, 0}, {209, 255, 0}, {209, 255, 0},
     {203, 255, 0}, {222, 255, 0}, {221, 255, 0}, {221, 255, 0}, {221, 255, 0},
-    {178, 255, 0}, {78, 255, 0}, {35, 255, 0}, {29, 255, 0}
+    {178, 255, 0}, {79, 255, 0}, {35, 255, 0}, {29, 255, 0}
 };
 static const short pal16[TILES][3] = {
     {15, 0, 0}, {7, 0, 0}, {3, 0, 0}, {9, 15, 0}, {1, 15, 0}, {1, 15, 1},
