@@ -83,9 +83,10 @@ frontend/curses/2089: frontend/main.c frontend/curses/curses.c frontend/common.h
 
 x11: frontend/x11/x2089
 
-frontend/x11/x2089: frontend/x11/x11.c frontend/common.h 2089.h $(CORE) frontend/common.o
+frontend/x11/x2089: frontend/x11/x11.c frontend/x11/xboard.c frontend/x11/xboard.h \
+		frontend/common.h 2089.h $(CORE) frontend/common.o
 	$(CC) $(CFLAGS) $(X11INC) -I. -Ifrontend -o $@ frontend/x11/x11.c \
-	    frontend/common.o $(CORE) $(X11LIB)
+	    frontend/x11/xboard.c frontend/common.o $(CORE) $(X11LIB)
 
 test/t89test: test/test.c 2089.h $(CORE)
 	$(CC) $(CFLAGS) -I. -o $@ test/test.c $(CORE)
@@ -154,7 +155,7 @@ strict:
 # The X11 frontend under the same warnings (needs the X headers).
 strict-x11:
 	gcc $(STRICT) $(X11INC) -I. -Ifrontend -o /tmp/2089-x11 frontend/x11/x11.c \
-	    frontend/common.c 2089.c rng89.c $(X11LIB)
+	    frontend/x11/xboard.c frontend/common.c 2089.c rng89.c $(X11LIB)
 
 clean:
 	rm -f $(CORE) $(FRONT) frontend/text/2089 frontend/curses/2089 frontend/curses/probe frontend/x11/x2089 test/t89test test/front test/replay

@@ -14,8 +14,8 @@ XCOMM MIT License; see LICENSE.
         DEPLIBS = $(DEPXLIB)
 LOCAL_LIBRARIES = $(XLIB)
        INCLUDES = -I. -I.. -I../..
-           SRCS = x11.c common.c 2089.c rng89.c
-           OBJS = x11.o common.o 2089.o rng89.o
+           SRCS = x11.c xboard.c common.c 2089.c rng89.c
+           OBJS = x11.o xboard.o common.o 2089.o rng89.o
 
 AllTarget(x2089)
 

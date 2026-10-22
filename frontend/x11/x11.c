@@ -11,11 +11,12 @@
  * Resources: x2089.geometry, x2089.font and x2089.mono (true) in
  * ~/.Xdefaults or xrdb, under the program's name.
  *
- * The board is drawn into a pixmap the size of the window and copied to the
- * window on Expose, so it never flickers and the server keeps nothing for
- * us.  The window can be resized: cells and tile fonts follow, picking the
- * largest bitmap Helvetica Bold the server has that fits (from the font
- * list, not by scaling, which bitmap servers do badly).
+ * Everything is drawn into a pixmap the size of the window and copied to
+ * the window on Expose, so it never flickers and the server keeps nothing
+ * for us.  The window can be resized: the board (drawn by xboard.c, which a
+ * toolkit frontend can share) follows, with tile text in the largest bitmap
+ * Helvetica Bold the server has that fits (from the font list, not by
+ * scaling, which bitmap servers do badly).
  *
  * Colour where the default visual has it and the colours can be allocated;
  * black and white otherwise (a monochrome or greyscale display, or an 8-bit
@@ -39,6 +40,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "common.h"
+#include "xboard.h"
 
 #define CLASS "X2089"
 
@@ -46,7 +48,7 @@ static Display *dpy;
 static int screen;
 static Window win;
 static Pixmap buf;                      /* what's in the window */
-static GC gc;
+static struct x89_board brd;
 static Atom wmdelete;
 static unsigned int width, height;      /* the window's size */
 static const char *name;                /* the program, for resources */
@@ -58,71 +60,13 @@ static int undook, canundo, over;
 static int asking;                      /* 1 while "new game?" waits for y/n */
 static int helping;                     /* 1 while the help is up */
 
-/* ------------------------------------------------------------ fonts */
+/* ------------------------------------------------------------ text */
 
-#define NFONTS 16
-static XFontStruct *font[NFONTS];       /* tile fonts, tallest first */
-static int nfonts;
 static XFontStruct *uifont;             /* score, messages, help */
-
-/* The pixel size field of an XLFD name (-foundry-family-...--size-...),
-   or 0 (scalable, or not an XLFD name). */
-static int pixels(const char *xlfd)
-{
-    int dashes = 0;
-
-    for (; *xlfd && dashes < 7; xlfd++)
-        if (*xlfd == '-')
-            dashes++;
-    return dashes == 7 ? atoi(xlfd) : 0;
-}
 
 static int fontheight(XFontStruct *f)
 {
     return f->ascent + f->descent;
-}
-
-/*
- * Every size of the tile font that the server has as a bitmap, one of each:
- * Helvetica Bold, which the X distribution's 75dpi and 100dpi fonts have;
- * without those, the misc fonts' bold fixed (9x15B and the like); without
- * those, "fixed", which every server has.  Scalable entries (size 0) are
- * left out: a bitmap server scales a bitmap font, which looks poor.
- */
-static void loadfonts(void)
-{
-    static const char *pattern[] = {
-        "-*-helvetica-bold-r-normal--*-*-*-*-p-*-iso8859-1",
-        "-*-fixed-bold-r-normal--*-*-*-*-c-*-iso8859-1",
-        0
-    };
-    char **names;
-    int n, i, j, k, p, px, have[NFONTS];
-    XFontStruct *f;
-
-    for (p = 0; pattern[p] && nfonts == 0; p++) {
-        names = XListFonts(dpy, (char *) pattern[p], 200, &n);
-        for (i = 0; names && i < n && nfonts < NFONTS; i++) {
-            px = pixels(names[i]);
-            for (j = 0; j < nfonts && have[j] != px; j++)
-                ;
-            if (px <= 0 || j < nfonts || (f = XLoadQueryFont(dpy, names[i])) == 0)
-                continue;
-            for (j = 0; j < nfonts && fontheight(font[j]) >= fontheight(f); j++)
-                ;
-            for (k = nfonts; k > j; k--) {
-                font[k] = font[k - 1];
-                have[k] = have[k - 1];
-            }
-            font[j] = f;
-            have[j] = px;
-            nfonts++;
-        }
-        if (names)
-            XFreeFontNames(names);
-    }
-    if (nfonts == 0 && (font[0] = XLoadQueryFont(dpy, "fixed")) != 0)
-        nfonts = 1;
 }
 
 /* The font for the score and messages: asked for, else a 12 or 14 point
@@ -145,82 +89,34 @@ static int loaduifont(const char *want)
     return uifont ? 0 : -1;
 }
 
-/* ------------------------------------------------------------ colours */
-
-/*
- * The original game's colours (Cirulli's style/main.css): the page, the
- * board, an empty cell, the two text colours, and each tile from 2 to 2048,
- * then one for all larger ("super") tiles, as the original has.
- */
-#define TILES 12
-static const char *tilename[TILES] = {
-    "#eee4da", "#ede0c8", "#f2b179", "#f59563", "#f67c5f", "#f65e3b",
-    "#edcf72", "#edcc61", "#edc850", "#edc53f", "#edc22e", "#3c3a32"
-};
-enum { PAGE, BOARD, EMPTY, DARK, LIGHT, NAMED };
-static const char *uiname[NAMED] = {
-    "#faf8ef", "#bbada0", "#cdc1b4", "#776e65", "#f9f6f2"
-};
-
-static int colour, hascolour;           /* in use; possible */
-static unsigned long ui[NAMED], tilepix[TILES];
-static unsigned long black, white;
-static Pixmap grey;                     /* a 50% stipple, for mono */
-
-/* Allocate every colour, or none: if one fails (a full 8-bit colormap),
-   free the rest and play in black and white. */
-static int allocate(void)
+/* The colour of text, and of the page around the board. */
+static unsigned long ink(void)
 {
-    Colormap map = DefaultColormap(dpy, screen);
-    Visual *v = DefaultVisual(dpy, screen);
-    unsigned long got[NAMED + TILES];
-    XColor c;
-    int i, n = 0;
+    return brd.colour ? brd.ui[X89_DARK] : brd.black;
+}
 
-    if (DefaultDepth(dpy, screen) < 4 || v->class == StaticGray || v->class == GrayScale)
-        return 0;
-    for (i = 0; i < NAMED + TILES; i++) {
-        if (!XParseColor(dpy, map, i < NAMED ? uiname[i] : tilename[i - NAMED], &c)
-            || !XAllocColor(dpy, map, &c)) {
-            if (n > 0)
-                XFreeColors(dpy, map, got, n, 0);
-            return 0;
-        }
-        got[n++] = c.pixel;
-    }
-    for (i = 0; i < NAMED; i++)
-        ui[i] = got[i];
-    for (i = 0; i < TILES; i++)
-        tilepix[i] = got[NAMED + i];
-    return 1;
+static unsigned long paper(void)
+{
+    return brd.colour ? brd.ui[X89_PAGE] : brd.white;
 }
 
 /* ------------------------------------------------------------ layout */
 
-static int pad, top, left, cell, gap, side, below;
+static int pad, below;
 
 /* Fit the board to the window: the score above, a message and the keys
    below, all centred. */
 static void layout(void)
 {
-    int n = game.size, lh = fontheight(uifont), w, h, text;
+    int lh = fontheight(uifont), text;
 
     pad = (int) (width < height ? width : height) / 40;
     if (pad < 4)
         pad = 4;
     text = lh + pad + pad + 2 * lh + 2;
-    w = (int) width - 2 * pad;
-    h = (int) height - 2 * pad - text;
-    side = w < h ? w : h;
-    /* n cells and n + 1 gaps, a gap an eighth of a cell */
-    cell = side * 8 / (9 * n + 1);
-    if (cell < 1)
-        cell = 1;
-    gap = cell / 8 > 0 ? cell / 8 : 1;
-    side = n * cell + (n + 1) * gap;
-    left = ((int) width - side) / 2;
-    top = ((int) height - side - text) / 2 + lh + pad;
-    below = top + side + pad;
+    x89_place(&brd, pad, pad + lh + pad, (int) width - 2 * pad,
+              (int) height - 2 * pad - text, game.size);
+    below = brd.y + brd.side + pad;
 }
 
 /* The window size for a board: about 400 pixels across at any size. */
@@ -234,82 +130,17 @@ static void preferred(unsigned int *w, unsigned int *h)
 
 /* ------------------------------------------------------------ drawing */
 
-static void text(XFontStruct *f, int x, int y, unsigned long pix, const char *s)
+static void text(int x, int y, const char *s)
 {
-    XSetFont(dpy, gc, f->fid);
-    XSetForeground(dpy, gc, pix);
-    XDrawString(dpy, buf, gc, x, y, s, (int) strlen(s));
+    XSetFont(dpy, brd.gc, uifont->fid);
+    XSetForeground(dpy, brd.gc, ink());
+    XDrawString(dpy, buf, brd.gc, x, y + uifont->ascent, s, (int) strlen(s));
 }
 
 /* A line of text centred across the window, with its top at y. */
 static void centred(int y, const char *s)
 {
-    int w = XTextWidth(uifont, s, (int) strlen(s));
-
-    text(uifont, ((int) width - w) / 2, y + uifont->ascent,
-         colour ? ui[DARK] : black, s);
-}
-
-static void box(int x, int y, int w, int h, unsigned long pix)
-{
-    XSetForeground(dpy, gc, pix);
-    XFillRectangle(dpy, buf, gc, x, y, (unsigned int) w, (unsigned int) h);
-}
-
-/* The tallest tile font whose text fits the cell, trying 2^n if the number
-   doesn't fit any; the smallest if nothing does. */
-static XFontStruct *fit(char *s, int exp)
-{
-    int i, pass, room = cell - cell / 6;
-
-    for (pass = 0; pass < 2; pass++) {
-        for (i = 0; i < nfonts; i++)
-            if (fontheight(font[i]) <= cell * 55 / 100
-                && XTextWidth(font[i], s, (int) strlen(s)) <= room)
-                return font[i];
-        sprintf(s, "2^%d", exp);
-    }
-    return font[nfonts - 1];
-}
-
-/*
- * One tile.  In colour, the original's.  In mono, as the curses frontend's
- * mono style: 2 and 4 outlined, 8 to 64 outlined heavily, 128 to 1024 in
- * reverse, 2048 and up in reverse with a white frame.
- */
-static void tile(int r, int c)
-{
-    int exp = game.cell[r * game.size + c], t = exp > TILES ? TILES - 1 : exp - 1;
-    int x = left + gap + c * (cell + gap), y = top + gap + r * (cell + gap);
-    int thin = cell / 40 > 1 ? cell / 40 : 1, thick = cell / 14 > 2 ? cell / 14 : 2, w;
-    unsigned long ink;
-    XFontStruct *f;
-    char s[16];
-
-    if (exp == 0) {
-        box(x, y, cell, cell, colour ? ui[EMPTY] : white);
-        return;
-    }
-    if (colour) {
-        box(x, y, cell, cell, tilepix[t]);
-        ink = exp <= 2 ? ui[DARK] : ui[LIGHT];
-    } else if (exp <= 6) {
-        box(x, y, cell, cell, black);
-        w = exp <= 2 ? thin : thick;
-        box(x + w, y + w, cell - 2 * w, cell - 2 * w, white);
-        ink = black;
-    } else {
-        box(x, y, cell, cell, black);
-        if (exp > 10) {
-            box(x + thin, y + thin, cell - 2 * thin, cell - 2 * thin, white);
-            box(x + 2 * thin, y + 2 * thin, cell - 4 * thin, cell - 4 * thin, black);
-        }
-        ink = white;
-    }
-    f89_tile(s, exp);
-    f = fit(s, exp);
-    w = XTextWidth(f, s, (int) strlen(s));
-    text(f, x + (cell - w) / 2, y + (cell - fontheight(f)) / 2 + f->ascent, ink, s);
+    text(((int) width - XTextWidth(uifont, s, (int) strlen(s))) / 2, y, s);
 }
 
 static void help(void)
@@ -328,60 +159,47 @@ static void help(void)
         "",
         0
     };
-    int i, lh = fontheight(uifont) + 2, y = top + gap;
+    int i, lh = fontheight(uifont) + 2, x = brd.x + brd.gap, y = brd.y + brd.gap;
 
-    box(left, top, side, side, colour ? ui[PAGE] : white);
+    XSetForeground(dpy, brd.gc, paper());
+    XFillRectangle(dpy, buf, brd.gc, brd.x, brd.y, (unsigned int) brd.side,
+                   (unsigned int) brd.side);
     for (i = 0; lines[i]; i++, y += lh)
         if (lines[i][0])
-            text(uifont, left + gap, y + uifont->ascent, colour ? ui[DARK] : black,
-                 lines[i]);
-    if (hascolour) {
-        text(uifont, left + gap, y + uifont->ascent, colour ? ui[DARK] : black,
-             "c  colour or black and white");
+            text(x, y, lines[i]);
+    if (brd.hascolour) {
+        text(x, y, "c  colour or black and white");
         y += lh;
     }
-    text(uifont, left + gap, y + uifont->ascent, colour ? ui[DARK] : black,
-         undook ? "u  undo the last move" : "(undo is off: start with -u)");
+    text(x, y, undook ? "u  undo the last move" : "(undo is off: start with -u)");
     y += 2 * lh;
-    text(uifont, left + gap, y + uifont->ascent, colour ? ui[DARK] : black,
-         "Press any key to go back.");
+    text(x, y, "Press any key to go back.");
 }
 
 /* Draw everything into the pixmap, then copy it to the window. */
 static void draw(void)
 {
     char s[96];
-    int r, c, lh = fontheight(uifont);
+    int lh = fontheight(uifont);
 
-    box(0, 0, (int) width, (int) height, colour ? ui[PAGE] : white);
+    XSetForeground(dpy, brd.gc, paper());
+    XFillRectangle(dpy, buf, brd.gc, 0, 0, width, height);
     f89_bnote(&game);
     sprintf(s, "2089    score %lu    best %lu    moves %lu", game.score,
             f89_btop(game.size), game.moves);
     if (XTextWidth(uifont, s, (int) strlen(s)) > (int) width)
         sprintf(s, "score %lu  best %lu", game.score, f89_btop(game.size));
-    centred(top - pad - lh, s);
+    centred(brd.y - pad - lh, s);
     if (helping)
         help();
-    else {
-        if (colour)
-            box(left, top, side, side, ui[BOARD]);
-        else {
-            XSetFillStyle(dpy, gc, FillOpaqueStippled);
-            XSetStipple(dpy, gc, grey);
-            XSetBackground(dpy, gc, white);
-            box(left, top, side, side, black);
-            XSetFillStyle(dpy, gc, FillSolid);
-        }
-        for (r = 0; r < game.size; r++)
-            for (c = 0; c < game.size; c++)
-                tile(r, c);
-    }
+    else
+        x89_draw(&brd, buf, &game);
     centred(below, msg);
     sprintf(s, "arrows move  %sn new  ? help  q quit", undook ? "u undo  " : "");
     if (XTextWidth(uifont, s, (int) strlen(s)) > (int) width)
         strcpy(s, "? help  q quit");
     centred(below + lh + 2, s);
-    XCopyArea(dpy, buf, win, gc, 0, 0, width, height, 0, 0);
+    XCopyArea(dpy, buf, win, brd.gc, 0, 0, width, height, 0, 0);
     XFlush(dpy);
 }
 
@@ -521,7 +339,7 @@ static int press(XKeyEvent *e)
         helping = 1;
         break;
     case F89_DISPLAY:
-        colour = hascolour && !colour;
+        brd.colour = brd.hascolour && !brd.colour;
         break;
     case 0:
         break;
@@ -578,7 +396,6 @@ static void makewindow(int argc, char **argv, const char *geometry)
     char *t = (char *) "2089", def[32];
     unsigned int pw, ph;
     int x, y, w, h, gravity;
-    static char bits[] = { 0x01, 0x02 };
 
     if (!size || !wm || !cls) {
         fprintf(stderr, "%s: out of memory\n", name);
@@ -602,7 +419,7 @@ static void makewindow(int argc, char **argv, const char *geometry)
     size->height = h;
     size->win_gravity = gravity;
 
-    a.background_pixel = colour ? ui[PAGE] : white;
+    a.background_pixel = paper();
     a.event_mask = ExposureMask | KeyPressMask | StructureNotifyMask;
     a.bit_gravity = NorthWestGravity;
     win = XCreateWindow(dpy, RootWindow(dpy, screen), x, y, (unsigned int) w,
@@ -627,8 +444,6 @@ static void makewindow(int argc, char **argv, const char *geometry)
     wmdelete = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
     XSetWMProtocols(dpy, win, &wmdelete, 1);
 
-    gc = XCreateGC(dpy, win, 0, (XGCValues *) 0);
-    grey = XCreateBitmapFromData(dpy, win, bits, 2, 2);
     resize((unsigned int) w, (unsigned int) h);
 }
 
@@ -677,21 +492,18 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
     screen = DefaultScreen(dpy);
-    black = BlackPixel(dpy, screen);
-    white = WhitePixel(dpy, screen);
     if (!geometry)
         geometry = resource("geometry");
     if (!fontname)
         fontname = resource("font");
     if (!mono && (res = resource("mono")) != 0)
         mono = strcmp(res, "true") == 0 || strcmp(res, "on") == 0 || strcmp(res, "yes") == 0;
-    loadfonts();
-    if (nfonts == 0 || loaduifont(fontname) < 0) {
+    if (x89_open(&brd, dpy, screen, RootWindow(dpy, screen)) < 0
+        || loaduifont(fontname) < 0) {
         fprintf(stderr, "%s: the server has no fonts I can use (not even fixed)\n", name);
         return EXIT_FAILURE;
     }
-    hascolour = allocate();
-    colour = hascolour && !mono;
+    brd.colour = brd.hascolour && !mono;
     sprintf(command, "%s %s%s", name, undook ? "-u " : "", mono ? "-mono " : "");
 
     makewindow(argc, argv, geometry);
@@ -711,7 +523,7 @@ int main(int argc, char **argv)
         XNextEvent(dpy, &e);
         switch (e.type) {
         case Expose:
-            XCopyArea(dpy, buf, win, gc, e.xexpose.x, e.xexpose.y,
+            XCopyArea(dpy, buf, win, brd.gc, e.xexpose.x, e.xexpose.y,
                       (unsigned int) e.xexpose.width, (unsigned int) e.xexpose.height,
                       e.xexpose.x, e.xexpose.y);
             break;
