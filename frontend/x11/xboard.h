@@ -20,7 +20,7 @@
 
 #define X89_FONTS 16
 #define X89_TILES 20            /* 2 to 524288, then one for all larger */
-#define X89_NEEDED 14           /* tiles whose colours are all-or-nothing */
+#define X89_BASE  11            /* 2 to 2048: the original's own colours */
 
 /* Named colours, in ui[]. */
 #define X89_PAGE  0             /* around the board */
@@ -44,6 +44,9 @@ struct x89_board {
     int bevel;
     int tight;                  /* 1 for gaps a sixteenth of a cell, not an eighth */
     unsigned long tilets[X89_TILES], tilebs[X89_TILES], emptyts, emptybs;
+    unsigned long super;        /* the original's colour for tiles past 2048 */
+    unsigned long ext[X89_TILES - X89_BASE];    /* ours, if extgot */
+    int extgot[X89_TILES - X89_BASE];
     Pixmap grey;                /* a 50% stipple, for the mono board */
     int x, y, side;             /* where the board is, after x89_place */
     int cell, gap;
@@ -53,10 +56,21 @@ struct x89_board {
  * Get ready to draw on screen of dpy: tile fonts, colours (all or none, in
  * the default colormap), a GC and the stipple, made for drawable d (any
  * window on that screen).  Colour is on if the display has it, bevels off.
- * Returns -1 if the server has no fonts at all.  A frontend may change the
- * colours afterwards (ui[X89_BOARD], ui[X89_EMPTY], tile[], text[]).
+ * The colours are the original game's, every tile past 2048 alike (see
+ * x89_extend).  Returns -1 if the server has no fonts at all.  A frontend
+ * may change the colours afterwards (ui[X89_BOARD], ui[X89_EMPTY], tile[],
+ * text[]).
  */
 int x89_open(struct x89_board *b, Display *dpy, int screen, Drawable d);
+
+/*
+ * Extended colours for tiles past 2048 (greens, blues, violets), or not:
+ * allocate them, as many as the colormap has room for, or free them; then
+ * set tile[X89_BASE] on in the array given (b->tile, or a frontend's copy)
+ * to them, or all to the original's colour.  One that can't be had takes
+ * the darkest of the band before it.  Nothing to do without colour.
+ */
+void x89_extend(struct x89_board *b, int on, unsigned long *tile);
 
 /* Place a size x size board, as large as fits, centred in the rectangle,
    with gaps between the cells an eighth of a cell (a sixteenth if tight). */

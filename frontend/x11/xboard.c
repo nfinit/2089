@@ -97,49 +97,80 @@ static const char *tilename[X89_TILES] = {
     "#5e9cd9", "#2570bb", "#23578b",
     "#a65ed9", "#7d25bb", "#5f238b"
 };
+static const char *supername = "#3c3a32";    /* the original's, past 2048 */
 static const char *uiname[X89_NAMED] = {
     "#faf8ef", "#bbada0", "#cdc1b4", "#776e65", "#f9f6f2"
 };
 
+/* Allocate one colour by name; 0 if the colormap has no room for it. */
+static int colour(struct x89_board *b, Colormap map, const char *name, unsigned long *px)
+{
+    XColor c;
+
+    if (!XParseColor(b->dpy, map, (char *) name, &c) || !XAllocColor(b->dpy, map, &c))
+        return 0;
+    *px = c.pixel;
+    return 1;
+}
+
 /*
- * Allocate the named colours and the tiles to 16384 all together, or none:
- * if one fails (a full 8-bit colormap), free the rest and play in black
- * and white.  The blues and violets are a bonus, rarely seen: one that
- * can't be had takes the darkest colour of the band before it.
+ * Allocate the named colours, the tiles to 2048 and the original's colour
+ * past it, all together, or none: if one fails (a full 8-bit colormap),
+ * free the rest and play in black and white.  Every tile past 2048 starts
+ * in the original's colour.
  */
 static int allocate(struct x89_board *b, int screen)
 {
     Colormap map = DefaultColormap(b->dpy, screen);
     Visual *v = DefaultVisual(b->dpy, screen);
-    unsigned long got[X89_NAMED + X89_NEEDED];
-    XColor c;
+    unsigned long got[X89_NAMED + X89_BASE + 1];
     int i, n = 0;
 
+    for (i = 0; i < X89_TILES - X89_BASE; i++)
+        b->extgot[i] = 0;
     if (DefaultDepth(b->dpy, screen) < 4 || v->class == StaticGray || v->class == GrayScale)
         return 0;
-    for (i = 0; i < X89_NAMED + X89_NEEDED; i++) {
-        if (!XParseColor(b->dpy, map, (char *) (i < X89_NAMED ? uiname[i]
-                                                : tilename[i - X89_NAMED]), &c)
-            || !XAllocColor(b->dpy, map, &c)) {
+    for (i = 0; i < X89_NAMED + X89_BASE + 1; i++) {
+        if (!colour(b, map, i < X89_NAMED ? uiname[i] : i < X89_NAMED + X89_BASE
+                    ? tilename[i - X89_NAMED] : supername, &got[n])) {
             if (n > 0)
                 XFreeColors(b->dpy, map, got, n, 0);
             return 0;
         }
-        got[n++] = c.pixel;
+        n++;
     }
     for (i = 0; i < X89_NAMED; i++)
         b->ui[i] = got[i];
+    b->super = got[X89_NAMED + X89_BASE];
     for (i = 0; i < X89_TILES; i++) {
-        if (i < X89_NEEDED)
-            b->tile[i] = got[X89_NAMED + i];
-        else if (XParseColor(b->dpy, map, (char *) tilename[i], &c)
-                 && XAllocColor(b->dpy, map, &c))
-            b->tile[i] = c.pixel;
-        else                            /* bands of three after the needed */
-            b->tile[i] = b->tile[X89_NEEDED + (i - X89_NEEDED) / 3 * 3 - 1];
+        b->tile[i] = i < X89_BASE ? got[X89_NAMED + i] : b->super;
         b->text[i] = b->ui[i < 2 ? X89_DARK : X89_LIGHT];   /* dark on 2 and 4 */
     }
     return 1;
+}
+
+void x89_extend(struct x89_board *b, int on, unsigned long *tile)
+{
+    Colormap map = DefaultColormap(b->dpy, DefaultScreen(b->dpy));
+    int i, e;
+
+    if (!b->hascolour)
+        return;
+    for (i = X89_BASE; i < X89_TILES; i++) {
+        e = i - X89_BASE;
+        if (on && !b->extgot[e])
+            b->extgot[e] = colour(b, map, tilename[i], &b->ext[e]);
+        else if (!on && b->extgot[e]) {
+            XFreeColors(b->dpy, map, &b->ext[e], 1, 0);
+            b->extgot[e] = 0;
+        }
+        if (b->extgot[e])
+            tile[i] = b->ext[e];
+        else if (on && e >= 3)              /* bands of three: the last before */
+            tile[i] = tile[X89_BASE + e / 3 * 3 - 1];
+        else
+            tile[i] = b->super;
+    }
 }
 
 int x89_open(struct x89_board *b, Display *dpy, int screen, Drawable d)

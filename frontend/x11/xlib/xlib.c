@@ -480,6 +480,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "%s: the server has no fonts I can use (not even fixed)\n", name);
         return EXIT_FAILURE;
     }
+    x89_extend(&brd, 1, brd.tile);     /* past 2048, as many as there's room for */
     brd.colour = brd.hascolour && !mono;
     sprintf(command, "%s %s%s", name, undook ? "-u " : "", mono ? "-mono " : "");
 
