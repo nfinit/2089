@@ -19,7 +19,8 @@
 #include "2089.h"
 
 #define X89_FONTS 16
-#define X89_TILES 14            /* 2 to 8192, then one for all larger */
+#define X89_TILES 20            /* 2 to 524288, then one for all larger */
+#define X89_NEEDED 14           /* tiles whose colours are all-or-nothing */
 
 /* Named colours, in ui[]. */
 #define X89_PAGE  0             /* around the board */

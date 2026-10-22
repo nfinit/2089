@@ -84,31 +84,40 @@ static void loadfonts(struct x89_board *b)
  * board, an empty cell, the two text colours, and each tile from 2 to 2048.
  * The original draws every larger tile alike, in near-black; past 2048
  * these are the greens common to the later mobile versions of the game,
- * mint for 4096 to dark green for 16384 and up, turned 10 degrees of hue
- * toward blue (as the original's own colours sit off their primaries).
+ * mint for 4096 to dark green for 16384, turned 10 degrees of hue toward
+ * blue (as the original's own colours sit off their primaries).  Then our
+ * own: blue to 131072, the largest tile a 4 x 4 board can hold, and violet
+ * past it, 1048576 and up all the darkest.  Each is three steps at the
+ * greens' lightness and saturation, at 210 and 275 degrees.
  */
 static const char *tilename[X89_TILES] = {
     "#eee4da", "#ede0c8", "#f2b179", "#f59563", "#f67c5f", "#f65e3b",
     "#edcf72", "#edcc61", "#edc850", "#edc53f", "#edc22e",
-    "#5fdaa8", "#25bb7e", "#238c62"
+    "#5fdaa8", "#25bb7e", "#238c62",
+    "#5e9cd9", "#2570bb", "#23578b",
+    "#a65ed9", "#7d25bb", "#5f238b"
 };
 static const char *uiname[X89_NAMED] = {
     "#faf8ef", "#bbada0", "#cdc1b4", "#776e65", "#f9f6f2"
 };
 
-/* Allocate every colour, or none: if one fails (a full 8-bit colormap),
-   free the rest and play in black and white. */
+/*
+ * Allocate the named colours and the tiles to 16384 all together, or none:
+ * if one fails (a full 8-bit colormap), free the rest and play in black
+ * and white.  The blues and violets are a bonus, rarely seen: one that
+ * can't be had takes the darkest colour of the band before it.
+ */
 static int allocate(struct x89_board *b, int screen)
 {
     Colormap map = DefaultColormap(b->dpy, screen);
     Visual *v = DefaultVisual(b->dpy, screen);
-    unsigned long got[X89_NAMED + X89_TILES];
+    unsigned long got[X89_NAMED + X89_NEEDED];
     XColor c;
     int i, n = 0;
 
     if (DefaultDepth(b->dpy, screen) < 4 || v->class == StaticGray || v->class == GrayScale)
         return 0;
-    for (i = 0; i < X89_NAMED + X89_TILES; i++) {
+    for (i = 0; i < X89_NAMED + X89_NEEDED; i++) {
         if (!XParseColor(b->dpy, map, (char *) (i < X89_NAMED ? uiname[i]
                                                 : tilename[i - X89_NAMED]), &c)
             || !XAllocColor(b->dpy, map, &c)) {
@@ -121,7 +130,13 @@ static int allocate(struct x89_board *b, int screen)
     for (i = 0; i < X89_NAMED; i++)
         b->ui[i] = got[i];
     for (i = 0; i < X89_TILES; i++) {
-        b->tile[i] = got[X89_NAMED + i];
+        if (i < X89_NEEDED)
+            b->tile[i] = got[X89_NAMED + i];
+        else if (XParseColor(b->dpy, map, (char *) tilename[i], &c)
+                 && XAllocColor(b->dpy, map, &c))
+            b->tile[i] = c.pixel;
+        else                            /* bands of three after the needed */
+            b->tile[i] = b->tile[X89_NEEDED + (i - X89_NEEDED) / 3 * 3 - 1];
         b->text[i] = b->ui[i < 2 ? X89_DARK : X89_LIGHT];   /* dark on 2 and 4 */
     }
     return 1;
