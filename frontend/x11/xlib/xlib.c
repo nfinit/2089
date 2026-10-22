@@ -1,5 +1,5 @@
 /*
- * x11.c - 2089 for the X Window System, with nothing but Xlib.
+ * xlib.c - 2089 for the X Window System, with nothing but Xlib (x2089).
  *
  * The kind of X game that came with a workstation or a BSD's X packages:
  * one window, drawn by hand, needing no toolkit (Xt, Athena or Motif), just
@@ -14,7 +14,7 @@
  * Everything is drawn into a pixmap the size of the window and copied to
  * the window on Expose, so it never flickers and the server keeps nothing
  * for us.  The window can be resized: the board (drawn by xboard.c, which a
- * toolkit frontend can share) follows, with tile text in the largest bitmap
+ * toolkit frontends share) follows, with tile text in the largest bitmap
  * Helvetica Bold the server has that fits (from the font list, not by
  * scaling, which bitmap servers do badly).
  *
@@ -34,7 +34,7 @@
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
-#include <X11/keysym.h>
+#include <X11/keysym.h>                 /* IsModifierKey, in older Xutil.h */
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -260,29 +260,6 @@ static void caught(int sig)
 
 /* ------------------------------------------------------------ playing */
 
-/* A key as a command. */
-static int key(XKeyEvent *e)
-{
-    char s[8];
-    KeySym ks;
-    int n = XLookupString(e, s, (int) sizeof s, &ks, (XComposeStatus *) 0);
-
-    switch (ks) {
-    case XK_Up:    return F89_UP;
-    case XK_Down:  return F89_DOWN;
-    case XK_Left:  return F89_LEFT;
-    case XK_Right: return F89_RIGHT;
-#ifdef XK_KP_Up
-    case XK_KP_Up:    return F89_UP;
-    case XK_KP_Down:  return F89_DOWN;
-    case XK_KP_Left:  return F89_LEFT;
-    case XK_KP_Right: return F89_RIGHT;
-#endif
-    default:
-        return n == 1 ? f89_key((unsigned char) s[0]) : 0;
-    }
-}
-
 /* What a key press does; returns 1 to quit. */
 static int press(XKeyEvent *e)
 {
@@ -310,7 +287,7 @@ static int press(XKeyEvent *e)
         }
         return 0;
     }
-    cmd = key(e);
+    cmd = x89_key(e);
     if (cmd != 0)
         say("");
     switch (cmd) {
@@ -461,7 +438,7 @@ int main(int argc, char **argv)
         if (strcmp(argv[i], "-h") == 0)
             usage(EXIT_SUCCESS);
         if (strcmp(argv[i], "-v") == 0) {
-            printf("2089 %s (X11)\n", T89_VERSION);
+            printf("2089 %s (Xlib)\n", T89_VERSION);
             return EXIT_SUCCESS;
         }
         if (strcmp(argv[i], "-mono") == 0) {

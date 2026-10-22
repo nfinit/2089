@@ -1,7 +1,7 @@
 /*
  * xboard.h - a 2089 board drawn with Xlib, for the X frontends: the plain
- * Xlib one (x11.c) and toolkit ones, which draw the board the same way in a
- * widget's window.
+ * Xlib one (xlib/xlib.c) and toolkit ones (motif/motif.c), which draw the
+ * board the same way in a widget's window.  And the keys they share.
  *
  * The board goes in any rectangle of any drawable (a window or a pixmap of
  * the screen's depth), as large as fits.  Tiles are in the original game's
@@ -55,5 +55,9 @@ void x89_place(struct x89_board *b, int x, int y, int w, int h, int size);
 
 /* Draw the board and its tiles where x89_place put it. */
 void x89_draw(struct x89_board *b, Drawable d, const struct t89_game *g);
+
+/* A key press as a command (F89_UP ...; 0 for none): the arrow keys (and the
+   keypad's), and the terminal frontends' keys (f89_key). */
+int x89_key(XKeyEvent *e);
 
 #endif

@@ -1,28 +1,19 @@
-XCOMM Imakefile for x2089, the Xlib frontend of 2089: the X way to build it,
-XCOMM with the X installation's own compiler, flags and libraries.
+XCOMM Imakefile for 2089's X frontends: x2089 (Xlib only) in xlib/ and
+XCOMM xm2089 (Motif) in motif/.  The X way to build them:
 XCOMM
-XCOMM     xmkmf
+XCOMM     xmkmf -a
 XCOMM     make
 XCOMM
 XCOMM (On AIX, imake's rules call the compiler cc_r: have /usr/vac/bin on
-XCOMM PATH.)  The shared sources are linked in from the directories above,
-XCOMM as imake does for sources kept elsewhere.
+XCOMM PATH.)  Without Motif, build xlib/ on its own: xmkmf and make there.
 XCOMM
 XCOMM Author: Claude Opus 5.5 (claude-opus-5-5), October 2026.
 XCOMM MIT License; see LICENSE.
 
-        DEPLIBS = $(DEPXLIB)
-LOCAL_LIBRARIES = $(XLIB)
-       INCLUDES = -I. -I.. -I../..
-           SRCS = x11.c xboard.c common.c 2089.c rng89.c
-           OBJS = x11.o xboard.o common.o 2089.o rng89.o
+#define IHaveSubdirs
+#define PassCDebugFlags
 
-AllTarget(x2089)
+        SUBDIRS = xlib motif
 
-LinkSourceFile(common.c,..)
-LinkSourceFile(2089.c,../..)
-LinkSourceFile(rng89.c,../..)
-
-NormalProgramTarget(x2089,$(OBJS),$(DEPLIBS),$(LOCAL_LIBRARIES),NullParameter)
-InstallProgram(x2089,$(BINDIR))
-DependTarget()
+MakeSubdirs($(SUBDIRS))
+DependSubdirs($(SUBDIRS))

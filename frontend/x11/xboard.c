@@ -9,6 +9,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "common.h"
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/keysym.h>
 #include "xboard.h"
 
 /* ------------------------------------------------------------ fonts */
@@ -234,4 +237,28 @@ void x89_draw(struct x89_board *b, Drawable d, const struct t89_game *g)
     for (r = 0; r < g->size; r++)
         for (c = 0; c < g->size; c++)
             tile(b, d, r, c, g->cell[r * g->size + c]);
+}
+
+/* ------------------------------------------------------------ keys */
+
+int x89_key(XKeyEvent *e)
+{
+    char s[8];
+    KeySym ks;
+    int n = XLookupString(e, s, (int) sizeof s, &ks, (XComposeStatus *) 0);
+
+    switch (ks) {
+    case XK_Up:    return F89_UP;
+    case XK_Down:  return F89_DOWN;
+    case XK_Left:  return F89_LEFT;
+    case XK_Right: return F89_RIGHT;
+#ifdef XK_KP_Up
+    case XK_KP_Up:    return F89_UP;
+    case XK_KP_Down:  return F89_DOWN;
+    case XK_KP_Left:  return F89_LEFT;
+    case XK_KP_Right: return F89_RIGHT;
+#endif
+    default:
+        return n == 1 ? f89_key((unsigned char) s[0]) : 0;
+    }
 }

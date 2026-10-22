@@ -23,11 +23,11 @@ make check          # run the tests
 ```
 
 `make install` copies the program to `/usr/local/bin` (the full program if it was
-built, else the text frontend), with `x2089` too if `make x11` built it. Name another
-place with `PREFIX`, such as your own `bin`:
+built, else the text frontend), with `x2089` and `xm2089` too if `make x11` built
+them. Name another place with `PREFIX`, such as your own `bin`:
 
 ```sh
-make x11 install PREFIX=$HOME       # ~/bin/2089 and ~/bin/x2089
+make x11 install PREFIX=$HOME       # ~/bin/2089, ~/bin/x2089 and ~/bin/xm2089
 ```
 
 `make` uses `cc` by default; name another compiler with `CC`:
@@ -62,27 +62,36 @@ else, build with `-DT89_SCORES='"/path/to/file"'`.
 
 ### X11
 
-`frontend/x11/x2089` plays in a window of its own under the X Window System. It is
-written for Xlib alone (`-lX11`), with no toolkit, so it builds wherever X11 does:
+Two programs play in a window of their own under the X Window System, sharing the
+board code in `frontend/x11`:
+
+- `x2089` (`frontend/x11/xlib`) needs only Xlib (`-lX11`), so it builds wherever X11 does.
+- `xm2089` (`frontend/x11/motif`) is a Motif application: a menu bar, dialogs for new
+  games, save strings and loading a game, and under CDE the session's colours and fonts.
 
 ```sh
-make x11                                            # frontend/x11/x2089
-make x11 X11INC=-I/usr/X11R6/include X11LIB="-L/usr/X11R6/lib -lX11"
+make x11                    # x2089, and xm2089 if Motif can be found
+make xlib                   # or one at a time
+make motif
+make x11 X11INC=-I/usr/X11R6/include X11LIB="-L/usr/X11R6/lib -lX11" \
+    MOTIFLIB="-L/usr/X11R6/lib -lXm -lXt -lX11"
 ```
 
-or the X way, with the X installation's own `imake` rules (on AIX, with
-`/usr/vac/bin` on `PATH`):
+or the X way, with the X installation's own `imake` rules (on AIX, with `/usr/vac/bin`
+on `PATH`):
 
 ```sh
-cd frontend/x11 && xmkmf && make
+cd frontend/x11 && xmkmf -a && make         # both
+cd frontend/x11/xlib && xmkmf && make       # x2089 alone, without Motif
 ```
 
-It takes the usual X options (`-display`, `-geometry`, `-fn` for the text font) and
-`-mono`, besides `-u`, `-s`, `-r` and `-l`, and reads the resources `x2089.geometry`,
-`x2089.font` and `x2089.mono` (`true`). The window can be resized. It plays in the
-original game's colours where the display has them, and in black and white otherwise;
-`c` switches. The keys are the terminal frontends' (`?` lists them), the best scores
-are kept in the same `~/.2089`, and quitting prints the command that carries on the game.
+Both take the usual X options (`-display`, `-geometry`; `x2089` also `-fn` for its text
+font, `xm2089` everything Xt takes) and `-mono`, besides `-u`, `-s`, `-r` and `-l`. As
+resources: `x2089.geometry`, `x2089.font`, `x2089.mono: true`; `XM2089*undo: true`,
+`XM2089*mono: true`. Windows can be resized. They play in the original game's colours
+where the display has them, and in black and white otherwise (`c` switches). The keys
+are the terminal frontends' (`?` lists them), the best scores are kept in the same
+`~/.2089`, and quitting prints the command that carries on the game.
 
 ## Other C implementations of 2048
 

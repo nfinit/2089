@@ -4,12 +4,13 @@
 #                        curses frontend if a curses library can be found
 #   make text            the text frontend and the tests only
 #   make curses          the curses frontend, without looking first
-#   make x11             the X11 frontend, frontend/x11/x2089 (Xlib only):
+#   make x11             the X11 frontends: x2089 (Xlib only), and xm2089 if
+#                        Motif can be found (make xlib, make motif: one each);
 #                        make x11 X11INC=-I/usr/X11R6/include X11LIB="-L/usr/X11R6/lib -lX11"
 #   make run             build, then play: the full program if it was built,
 #                        else the text frontend (make run ARGS="-u -s 5")
 #   make check           run the tests: the core's and the frontends' shared code
-#   make install         install 2089 (and x2089, if make x11 built it) in
+#   make install         install 2089 (and x2089 and xm2089, if built) in
 #                        $(PREFIX)/bin: make x11 install PREFIX=$HOME
 #   make CC=c89 CFLAGS=-O
 #
@@ -20,6 +21,7 @@ CFLAGS = -O
 CURSES = -lcurses
 X11INC =
 X11LIB = -lX11
+MOTIFLIB = -lXm -lXt -lX11
 PREFIX = /usr/local
 BINDIR = $(PREFIX)/bin
 
@@ -81,12 +83,34 @@ frontend/curses/2089: frontend/main.c frontend/curses/curses.c frontend/common.h
 	$(CC) $(CFLAGS) -DT89_CURSES -I. -Ifrontend -o $@ frontend/main.c \
 	    frontend/curses/curses.c $(FRONT) $(CORE) $(CURSES)
 
-x11: frontend/x11/x2089
+# The X frontends share the board (frontend/x11/xboard.c).  Motif is looked
+# for as curses is: only the probe decides.
+XBOARD = frontend/x11/xboard.c frontend/x11/xboard.h frontend/common.h 2089.h \
+	$(CORE) frontend/common.o
+XFLAGS = $(X11INC) -I. -Ifrontend -Ifrontend/x11
 
-frontend/x11/x2089: frontend/x11/x11.c frontend/x11/xboard.c frontend/x11/xboard.h \
-		frontend/common.h 2089.h $(CORE) frontend/common.o
-	$(CC) $(CFLAGS) $(X11INC) -I. -Ifrontend -o $@ frontend/x11/x11.c \
-	    frontend/x11/xboard.c frontend/common.o $(CORE) $(X11LIB)
+x11: xlib
+	@if $(CC) $(CFLAGS) $(X11INC) -o frontend/x11/motif/probe frontend/x11/motif/probe.c \
+	    $(MOTIFLIB) >/dev/null 2>&1; then \
+	    rm -f frontend/x11/motif/probe; \
+	    $(MAKE) CC="$(CC)" CFLAGS="$(CFLAGS)" X11INC="$(X11INC)" MOTIFLIB="$(MOTIFLIB)" motif; \
+	else \
+	    rm -f frontend/x11/motif/probe; \
+	    echo "2089: no Motif found (tried $(MOTIFLIB)); built x2089 only."; \
+	    echo "2089: for xm2089, name it: make x11 MOTIFLIB='-L/some/lib -lXm -lXt -lX11'"; \
+	fi
+
+xlib: frontend/x11/xlib/x2089
+
+motif: frontend/x11/motif/xm2089
+
+frontend/x11/xlib/x2089: frontend/x11/xlib/xlib.c $(XBOARD)
+	$(CC) $(CFLAGS) $(XFLAGS) -o $@ frontend/x11/xlib/xlib.c frontend/x11/xboard.c \
+	    frontend/common.o $(CORE) $(X11LIB)
+
+frontend/x11/motif/xm2089: frontend/x11/motif/motif.c $(XBOARD)
+	$(CC) $(CFLAGS) $(XFLAGS) -o $@ frontend/x11/motif/motif.c frontend/x11/xboard.c \
+	    frontend/common.o $(CORE) $(MOTIFLIB)
 
 test/t89test: test/test.c 2089.h $(CORE)
 	$(CC) $(CFLAGS) -I. -o $@ test/test.c $(CORE)
@@ -106,8 +130,10 @@ install: all
 	if test -x frontend/curses/2089; then cp frontend/curses/2089 $(DESTDIR)$(BINDIR)/2089; \
 	else cp frontend/text/2089 $(DESTDIR)$(BINDIR)/2089; fi
 	chmod 755 $(DESTDIR)$(BINDIR)/2089
-	if test -x frontend/x11/x2089; then rm -f $(DESTDIR)$(BINDIR)/x2089 && \
-	    cp frontend/x11/x2089 $(DESTDIR)$(BINDIR)/x2089 && chmod 755 $(DESTDIR)$(BINDIR)/x2089; fi
+	for p in frontend/x11/xlib/x2089 frontend/x11/motif/xm2089; do \
+	    if test -x $$p; then b=`basename $$p`; rm -f $(DESTDIR)$(BINDIR)/$$b && \
+	        cp $$p $(DESTDIR)$(BINDIR)/$$b && chmod 755 $(DESTDIR)$(BINDIR)/$$b || exit 1; fi; \
+	done
 
 check: test/t89test test/front
 	test/t89test
@@ -152,10 +178,13 @@ strict:
 	/tmp/2089-test
 	/tmp/2089-front
 
-# The X11 frontend under the same warnings (needs the X headers).
+# The X11 frontends under the same warnings (needs the X and Motif headers).
 strict-x11:
-	gcc $(STRICT) $(X11INC) -I. -Ifrontend -o /tmp/2089-x11 frontend/x11/x11.c \
+	gcc $(STRICT) $(XFLAGS) -o /tmp/2089-xlib frontend/x11/xlib/xlib.c \
 	    frontend/x11/xboard.c frontend/common.c 2089.c rng89.c $(X11LIB)
+	gcc $(STRICT) $(XFLAGS) -o /tmp/2089-motif frontend/x11/motif/motif.c \
+	    frontend/x11/xboard.c frontend/common.c 2089.c rng89.c $(MOTIFLIB)
 
 clean:
-	rm -f $(CORE) $(FRONT) frontend/text/2089 frontend/curses/2089 frontend/curses/probe frontend/x11/x2089 test/t89test test/front test/replay
+	rm -f $(CORE) $(FRONT) frontend/text/2089 frontend/curses/2089 frontend/curses/probe \
+	    frontend/x11/xlib/x2089 frontend/x11/motif/xm2089 frontend/x11/motif/probe test/t89test test/front test/replay
