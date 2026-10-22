@@ -72,14 +72,16 @@ Two programs play in a window of their own under the X Window System, sharing th
 board code in `frontend/x11`:
 
 - `x2089` (`frontend/x11/xlib`) needs only Xlib (`-lX11`), so it builds wherever X11 does.
-- `xm2089` (`frontend/x11/motif`) is a Motif application in the style of the CDE desktop's
-  own tools, as compact as they are: menus, the scores in sunken fields, tiles raised
-  with Motif bevels, optional arrow buttons to play with the mouse (View > Arrow
-  Buttons, or `-arrows`), a status line, and dialogs to start a new game (of another
-  size, or by its number), open and save games as files, copy or paste save strings and
-  see (or clear) the best score for each size. Its tiles can take the colors of the CDE palette,
-  following Style Manager (`-colors desktop`); past 2048, Options > Extended Colors
-  (on unless `+extended`) can be turned off for the original's one dark color.
+- `xm2089` (`frontend/x11/motif`) is a Motif-native application (Motif 2.0 or later)
+  that runs on its own under any window manager and integrates with CDE where there
+  is one (below). It's as compact as CDE's own tools: menus, the scores in sunken
+  fields, tiles raised with Motif bevels, optional arrow buttons to play with the mouse
+  (View > Arrow Buttons, or `-arrows`), a status line, and dialogs to start a new game
+  (of another size, or by its number), open and save games as files, copy or paste save
+  strings and see (or clear) the best score for each size. Under CDE its tiles can take
+  the colors of the desktop palette, following Style Manager (`-colors desktop`); past
+  2048, Options > Extended Colors (on unless `+extended`) can be turned off for the
+  original's one dark color.
 
 ```sh
 make x11                    # x2089, and xm2089 if Motif can be found

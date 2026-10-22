@@ -2,8 +2,9 @@
  * motif.c - 2089 for the X Window System, with Motif (xm2089).
  *
  * The same game as x2089 (xlib/xlib.c), with the same board (../xboard.c),
- * as a Motif application of the CDE years, after the CDE and Motif style
- * guides and the desktop's own tools (dtcalc, dtpad):
+ * as a Motif-native application, after the Motif and CDE style guides and
+ * as dense as the CDE desktop's own tools (dtcalc, dtpad).  It runs on its
+ * own under any window manager, and fits into CDE where there is one:
  *
  *   - a menu bar: File (New Game, New Game from Number, Open, Save As,
  *     Save String, Exit), Edit (Undo), View (Arrow Buttons, Best Scores),
@@ -50,7 +51,9 @@
 #include <Xm/Xm.h>
 #include <Xm/ArrowB.h>
 #include <Xm/CascadeB.h>
+#if XmVERSION >= 2
 #include <Xm/ColorObjP.h>               /* XmeGetColorObjData: the desktop palette */
+#endif
 #include <Xm/DrawingA.h>
 #include <Xm/FileSB.h>
 #include <Xm/Form.h>
@@ -201,6 +204,7 @@ static void gamecolours(Pixel page)
     s->ok = 1;
 }
 
+#if XmVERSION >= 2
 static int luminance(Pixel p)
 {
     XColor c;
@@ -209,6 +213,7 @@ static int luminance(Pixel p)
     XQueryColor(dpy, DefaultColormapOfScreen(XtScreen(top)), &c);
     return (30 * (c.red >> 8) + 59 * (c.green >> 8) + 11 * (c.blue >> 8)) / 100;
 }
+#endif
 
 /*
  * The desktop's palette, from CDE's colour server (none without it).  The
@@ -221,6 +226,7 @@ static int luminance(Pixel p)
  */
 static void desktopcolours(void)
 {
+#if XmVERSION >= 2                      /* Motif 1.2 has no XmeGetColorObjData */
     struct scheme *s = &schemes[DESKTOP];
     XmPixelSet set[XmCO_NUM_COLORS];
     int use, i, j, n = 0, order[XmCO_NUM_COLORS], lum[XmCO_NUM_COLORS];
@@ -253,6 +259,7 @@ static void desktopcolours(void)
         s->tilebs[i] = set[j].bs;
     }
     s->ok = 1;
+#endif
 }
 
 /* The game's extended colours past 2048, or the original's one colour. */
