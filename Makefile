@@ -9,6 +9,8 @@
 #   make run             build, then play: the full program if it was built,
 #                        else the text frontend (make run ARGS="-u -s 5")
 #   make check           run the tests: the core's and the frontends' shared code
+#   make install         install 2089 (and x2089, if make x11 built it) in
+#                        $(PREFIX)/bin: make x11 install PREFIX=$HOME
 #   make CC=c89 CFLAGS=-O
 #
 # Developer checks (gcc): make strict, make strict-x11
@@ -18,6 +20,8 @@ CFLAGS = -O
 CURSES = -lcurses
 X11INC =
 X11LIB = -lX11
+PREFIX = /usr/local
+BINDIR = $(PREFIX)/bin
 
 CORE = 2089.o rng89.o
 FRONT = frontend/common.o frontend/text/text.o
@@ -91,6 +95,18 @@ test/front: test/front.c frontend/common.h 2089.h frontend/common.o $(CORE)
 
 test/replay: test/replay.c 2089.h $(CORE)
 	$(CC) $(CFLAGS) -I. -o $@ test/replay.c $(CORE)
+
+# 2089 is the full program if it was built, else the text frontend.  The old
+# copy is removed first: some systems (AIX) won't overwrite a program that's
+# running.  DESTDIR is for packaging: the files go there, under BINDIR.
+install: all
+	mkdir -p $(DESTDIR)$(BINDIR)
+	rm -f $(DESTDIR)$(BINDIR)/2089
+	if test -x frontend/curses/2089; then cp frontend/curses/2089 $(DESTDIR)$(BINDIR)/2089; \
+	else cp frontend/text/2089 $(DESTDIR)$(BINDIR)/2089; fi
+	chmod 755 $(DESTDIR)$(BINDIR)/2089
+	if test -x frontend/x11/x2089; then rm -f $(DESTDIR)$(BINDIR)/x2089 && \
+	    cp frontend/x11/x2089 $(DESTDIR)$(BINDIR)/x2089 && chmod 755 $(DESTDIR)$(BINDIR)/x2089; fi
 
 check: test/t89test test/front
 	test/t89test

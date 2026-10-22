@@ -22,6 +22,14 @@ make run            # build, then play (make run ARGS="-u -s 5" passes options)
 make check          # run the tests
 ```
 
+`make install` copies the program to `/usr/local/bin` (the full program if it was
+built, else the text frontend), with `x2089` too if `make x11` built it. Name another
+place with `PREFIX`, such as your own `bin`:
+
+```sh
+make x11 install PREFIX=$HOME       # ~/bin/2089 and ~/bin/x2089
+```
+
 `make` uses `cc` by default; name another compiler with `CC`:
 
 ```sh
