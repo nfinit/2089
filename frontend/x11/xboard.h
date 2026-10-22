@@ -61,6 +61,10 @@ int x89_open(struct x89_board *b, Display *dpy, int screen, Drawable d);
    with gaps between the cells an eighth of a cell (a sixteenth if tight). */
 void x89_place(struct x89_board *b, int x, int y, int w, int h, int size);
 
+/* The smallest side x89_place can be given for a size x size board whose
+   tiles still show their numbers, in the smallest tile font. */
+int x89_least(struct x89_board *b, int size);
+
 /* Draw the board and its tiles where x89_place put it. */
 void x89_draw(struct x89_board *b, Drawable d, const struct t89_game *g);
 

@@ -158,6 +158,19 @@ void x89_place(struct x89_board *b, int x, int y, int w, int h, int size)
     b->y = y + (h - b->side) / 2;
 }
 
+/* The smallest cell that the smallest font fits 2048 in, by fit's rules
+   (bigger tiles become 2^n, which is no wider), then the smallest side
+   that x89_place makes that cell from. */
+int x89_least(struct x89_board *b, int size)
+{
+    XFontStruct *f = b->font[b->nfonts - 1];
+    int cell = 1, k = b->tight ? 16 : 8, n = (k + 1) * size + 1;
+
+    while (height(f) > cell * 55 / 100 || XTextWidth(f, "2048", 4) > cell - cell / 6)
+        cell++;
+    return (cell * n + k - 1) / k;
+}
+
 static void box(struct x89_board *b, Drawable d, int x, int y, int w, int h,
                 unsigned long pix)
 {

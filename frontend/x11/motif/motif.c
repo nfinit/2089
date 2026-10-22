@@ -73,6 +73,7 @@
 static XtAppContext app;
 static Widget top, board, message, score[3];
 static Widget undoitem, undobutton, schemeitem[3], arrowsitem, pad;
+static Widget menubar, scorelabel[3], work, controls, newbutton;
 static Widget asknew, showsave, opendialog, savedialog, keys, about;
 static Display *dpy;
 static Pixmap buf;                      /* what's in the board's window */
@@ -278,6 +279,8 @@ static void nomoves(void)
                  : "No moves left: start a New Game.");
 }
 
+static void minsize(void);
+
 /* The board's window: the pixmap, the board on it, then copy it over; and
    the scores, and what can be undone. */
 static void draw(void)
@@ -300,6 +303,7 @@ static void draw(void)
     label(score[2], s);
     XtSetSensitive(undoitem, (Boolean) (res.undo && canundo));
     XtSetSensitive(undobutton, (Boolean) (res.undo && canundo));
+    minsize();                          /* the best score may have a digit more */
 }
 
 /* Place the board in the drawing area, filling it. */
@@ -344,6 +348,98 @@ static void resized(Widget w, XtPointer client, XtPointer call)
     (void) call;
     resize();
     draw();
+}
+
+/* A widget's width as it would like it. */
+static int wants(Widget w)
+{
+    XtWidgetGeometry g;
+    Dimension now;
+
+    XtVaGetValues(w, XmNwidth, &now, (char *) 0);
+    if (XtQueryGeometry(w, (XtWidgetGeometry *) 0, &g) != XtGeometryNo
+        && (g.request_mode & CWWidth))
+        return g.width;
+    return now;
+}
+
+/* The width a score's sunken field needs for n digits: the digits, and
+   the value's and the frame's margins and shadows as they are. */
+static int field(Widget value, int n)
+{
+    Dimension fw, vw, mw, ml, mr, ht, st;
+    XmFontList fl;
+    XmString s;
+    char d[24];
+    int w;
+
+    XtVaGetValues(XtParent(value), XmNwidth, &fw, (char *) 0);
+    XtVaGetValues(value, XmNwidth, &vw, XmNmarginWidth, &mw, XmNmarginLeft, &ml,
+                  XmNmarginRight, &mr, XmNhighlightThickness, &ht,
+                  XmNshadowThickness, &st, XmNfontList, &fl, (char *) 0);
+    sprintf(d, "%.*s", n < 20 ? n : 20, "00000000000000000000");
+    s = XmStringCreateLocalized(d);
+    w = (int) XmStringWidth(fl, s);
+    XmStringFree(s);
+    return (fw - vw) + 2 * (ht + st + mw) + ml + mr + w;
+}
+
+/*
+ * The smallest the window may be: wide enough for the menu bar, the scores
+ * and the bottom row as they'd like to be, and for a board that shows its
+ * numbers; then tall enough for the board to be as tall as that is wide.
+ * The score fields hold as many digits as the best score has (four at
+ * least).  What's around the board (frames, margins, the other rows) is
+ * measured off the window as it is, so this runs once the window is up,
+ * and again when anything in it changes.
+ */
+static void minsize(void)
+{
+    static int lastw, lasth;
+    Dimension sw, sh, bw, bh, rw;
+    char s[24];
+    int w, h, need, n, i, t;
+
+    if (!XtIsRealized(top) || !XtIsManaged(work))  /* not up, or mid-change */
+        return;
+    XtVaGetValues(top, XmNwidth, &sw, XmNheight, &sh, (char *) 0);
+    XtVaGetValues(board, XmNwidth, &bw, XmNheight, &bh, (char *) 0);
+
+    w = x89_least(&brd, game.size) + (sw - bw);
+
+    XtVaGetValues(menubar, XmNwidth, &rw, (char *) 0);
+    if (wants(menubar) + (sw - rw) > w)
+        w = wants(menubar) + (sw - rw);
+
+    /* each score's label and field in a third of the row */
+    sprintf(s, "%lu", f89_btop(game.size));
+    n = strlen(s) > 4 ? (int) strlen(s) : 4;
+    for (need = 0, i = 0; i < 3; i++) {
+        t = (i > 0 ? 6 : 0) + wants(scorelabel[i]) + 2 + field(score[i], n);
+        if (t > need)
+            need = t;
+    }
+    XtVaGetValues(XtParent(scorelabel[0]), XmNwidth, &rw, (char *) 0);
+    if (3 * need + (sw - rw) > w)
+        w = 3 * need + (sw - rw);
+
+    /* the buttons, and the arrows after a space */
+    need = wants(newbutton) + 4 + wants(undobutton);
+    if (XtIsManaged(pad))
+        need += 12 + wants(pad);
+    XtVaGetValues(controls, XmNwidth, &rw, (char *) 0);
+    if (need + (sw - rw) > w)
+        w = need + (sw - rw);
+
+    h = (w - (sw - bw)) + (sh - bh);
+    if (w == lastw && h == lasth)
+        return;
+    lastw = w;
+    lasth = h;
+    XtVaSetValues(top, XmNminWidth, w, XmNminHeight, h, (char *) 0);
+    if (sw < w || sh < h)
+        XtVaSetValues(top, XmNwidth, sw < w ? w : sw, XmNheight, sh < h ? h : sh,
+                      (char *) 0);
 }
 
 /* ------------------------------------------------------------ leaving */
@@ -394,6 +490,7 @@ static void start(const struct t89_game *g)
     canundo = 0;
     over = t89_over(&game);
     place();                            /* the size may have changed */
+    minsize();
     if (over)
         nomoves();
     else
@@ -715,12 +812,27 @@ static void clicked(Widget w, XtPointer client, XEvent *e, Boolean *go)
 /* The arrow buttons, shown or not. */
 static void showarrows(int on)
 {
+    int up = XtIsRealized(top);
+
+    /*
+     * Once the window is up, the bottom row can't just grow: the shell
+     * won't, and the form won't take the room from the board.  So the
+     * work area is out of the window while the pad comes or goes (its
+     * rows get what they ask for), then back in the space it had, where
+     * the board gives or takes the difference.  minsize makes the window
+     * bigger if it has to be.
+     */
     res.arrows = (Boolean) (on != 0);
+    if (up)
+        XtUnmanageChild(work);
     if (on)
         XtManageChild(pad);
     else
         XtUnmanageChild(pad);
+    if (up)
+        XtManageChild(work);
     XmToggleButtonSetState(arrowsitem, res.arrows, False);
+    minsize();
 }
 
 enum {
@@ -857,6 +969,7 @@ static Widget scorebox(Widget parent, const char *wname, const char *text, int n
                                 XmNleftPosition, n,
                                 XmNleftOffset, n > 0 ? 6 : 0, (char *) 0);
     label(t, text);
+    scorelabel[n] = t;
     f = XtVaCreateManagedWidget("field", xmFrameWidgetClass, parent,
                                 XmNshadowType, XmSHADOW_IN,
                                 XmNtopAttachment, XmATTACH_FORM,
@@ -926,9 +1039,9 @@ static Widget button(Widget parent, const char *wname, const char *text, Widget 
  */
 static void layout(Widget mainw)
 {
-    Widget work, scores, frame, controls, newb, status;
+    Widget scores, frame, status;
 
-    menus(mainw);
+    menubar = menus(mainw);
     work = XtVaCreateManagedWidget("work", xmFormWidgetClass, mainw, (char *) 0);
 
     scores = XtVaCreateManagedWidget("scores", xmFormWidgetClass, work,
@@ -944,8 +1057,8 @@ static void layout(Widget mainw)
                                        XmNbottomAttachment, XmATTACH_FORM,
                                        XmNleftAttachment, XmATTACH_FORM,
                                        XmNrightAttachment, XmATTACH_FORM, (char *) 0);
-    newb = button(controls, "newGame", "New Game", (Widget) 0, M_NEW);
-    undobutton = button(controls, "undo", "Undo", newb, M_UNDO);
+    newbutton = button(controls, "newGame", "New Game", (Widget) 0, M_NEW);
+    undobutton = button(controls, "undo", "Undo", newbutton, M_UNDO);
     pad = XtVaCreateWidget("pad", xmFormWidgetClass, controls,
                            XmNfractionBase, 6,
                            XmNbottomAttachment, XmATTACH_FORM,
@@ -1125,6 +1238,7 @@ int main(int argc, char **argv)
         say("");
     XtRealizeWidget(top);
     resize();
+    minsize();
     draw();
     XmProcessTraversal(board, XmTRAVERSE_CURRENT);
     XtAppMainLoop(app);
