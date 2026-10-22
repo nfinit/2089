@@ -94,11 +94,13 @@ cd frontend/x11/xlib && xmkmf && make       # x2089 alone, without Motif
 Both take the usual X options (`-display`, `-geometry`; `x2089` also `-fn` for its text
 font, `xm2089` everything Xt takes) and `-mono`, besides `-u`, `-s`, `-r` and `-l`. As
 resources: `x2089.geometry`, `x2089.font`, `x2089.mono: true`; `XM2089*undo: true`,
-`XM2089*colours: game`, `desktop` or `mono`, `XM2089*extended: false`. Windows can be
-resized. They play in the original game's colours where the display has them (past
-2048, greens as in the later mobile versions, then blues and violets of our own), and in
-black and white otherwise (`c` switches). The keys are the terminal frontends' (`?`
-lists them), the best scores are kept in the same
+`XM2089*colours: game`, `desktop` or `mono`, `XM2089*extended: false`, `XM2089*size: 5`;
+`xm2089`'s Options > Save Options writes its settings to `~/.xm2089` (resources, over
+those in `~/.Xdefaults`, under the command line). Windows can be resized. They play
+in the original game's colours where the display has them (past 2048, greens as in the
+later mobile versions, then blues and violets of our own), and in black and white
+otherwise (`c` switches). The keys are the terminal frontends' (`?` lists them), the
+best scores are kept in the same
 `~/.2089`, and quitting prints the command that carries on the game.
 
 #### On the CDE desktop

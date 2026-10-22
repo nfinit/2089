@@ -34,7 +34,9 @@
  *
  * Xt takes the usual X options (-display, -geometry, -xrm, ...); resources
  * are read the X way, for class XM2089.  Fallback resources compiled in
- * stand in for an app-defaults file.
+ * stand in for an app-defaults file.  Options > Save Options writes the
+ * board size, colours and arrows to ~/.xm2089, as resources, read over the
+ * user's others (~/.Xdefaults) but under the command line.
  *
  * On the CDE desktop (with make install-cde, files in motif/cde): an
  * action and icons, so 2089 is in Application Manager and saved games
@@ -99,6 +101,7 @@ static int known;                       /* if it was dealt here, not loaded */
 struct settings {
     Boolean undo, mono, arrows, extended;
     String colours;                     /* game, desktop or mono */
+    int size;                           /* of new games, unless -s */
 };
 static struct settings res;
 
@@ -112,17 +115,25 @@ static XtResource resources[] = {
     { (char *) "extended", (char *) "Extended", XmRBoolean, sizeof(Boolean),
       XtOffsetOf(struct settings, extended), XmRImmediate, (XtPointer) True },
     { (char *) "colours", (char *) "Colours", XmRString, sizeof(String),
-      XtOffsetOf(struct settings, colours), XmRImmediate, (XtPointer) "game" }
+      XtOffsetOf(struct settings, colours), XmRImmediate, (XtPointer) "game" },
+    { (char *) "size", (char *) "Size", XmRInt, sizeof(int),
+      XtOffsetOf(struct settings, size), XmRImmediate, (XtPointer) T89_SIZE }
 };
 
+/* (As app.resource: the most specific a resource can be, as saved options
+   are; see readoptions.) */
 static XrmOptionDescRec options[] = {
-    { (char *) "-u", (char *) "*undo", XrmoptionNoArg, (XtPointer) "true" },
-    { (char *) "-mono", (char *) "*mono", XrmoptionNoArg, (XtPointer) "true" },
-    { (char *) "-arrows", (char *) "*arrows", XrmoptionNoArg, (XtPointer) "true" },
-    { (char *) "-extended", (char *) "*extended", XrmoptionNoArg, (XtPointer) "true" },
-    { (char *) "+extended", (char *) "*extended", XrmoptionNoArg, (XtPointer) "false" },
-    { (char *) "-colours", (char *) "*colours", XrmoptionSepArg, (XtPointer) 0 }
+    { (char *) "-u", (char *) ".undo", XrmoptionNoArg, (XtPointer) "true" },
+    { (char *) "-mono", (char *) ".mono", XrmoptionNoArg, (XtPointer) "true" },
+    { (char *) "-arrows", (char *) ".arrows", XrmoptionNoArg, (XtPointer) "true" },
+    { (char *) "-extended", (char *) ".extended", XrmoptionNoArg, (XtPointer) "true" },
+    { (char *) "+extended", (char *) ".extended", XrmoptionNoArg, (XtPointer) "false" },
+    { (char *) "-colours", (char *) ".colours", XrmoptionSepArg, (XtPointer) 0 }
 };
+
+/* The options again, with -xrm, to put the command line back on top of
+   ~/.xm2089 (see readoptions). */
+static XrmOptionDescRec again[XtNumber(options) + 1];
 
 /* What an app-defaults file would say, if there is none. */
 static String fallback[] = {
@@ -468,6 +479,76 @@ static void minsize(void)
     if (sw < w || sh < h)
         XtVaSetValues(top, XmNwidth, sw < w ? w : sw, XmNheight, sh < h ? h : sh,
                       (char *) 0);
+}
+
+/* ------------------------------------------------------------ options */
+
+/* ~/.xm2089, where Options > Save Options keeps them: 0 if no home. */
+static int optionsfile(char *file)
+{
+    const char *home = getenv("HOME");
+
+    if (!home || !home[0])
+        return 0;
+    sprintf(file, "%.280s/.xm2089", home);
+    return 1;
+}
+
+/*
+ * The saved options, read over the user's other resources (~/.Xdefaults,
+ * or what xrdb loaded: Xt has them all by now), since saving them was
+ * asked for later; then the command line (argc and argv as they were
+ * before Xt took its part) again over those.  Xrm goes by how specific a
+ * resource is, not by which came last, so saved options are written as
+ * app.resource (xm2089.size), which nothing in ~/.Xdefaults beats unless
+ * it says the same, and the options on the command line are the same.
+ */
+static void readoptions(int argc, char **argv)
+{
+    XrmDatabase db = XtDatabase(dpy), cmd = 0;
+    char file[300];
+
+    if (!optionsfile(file))
+        return;
+    XrmCombineFileDatabase(file, &db, True);
+    memcpy(again, options, sizeof options);
+    again[XtNumber(options)].option = (char *) "-xrm";
+    again[XtNumber(options)].specifier = 0;
+    again[XtNumber(options)].argKind = XrmoptionResArg;
+    again[XtNumber(options)].value = 0;
+    XrmParseCommand(&cmd, again, XtNumber(again), (char *) name, &argc, argv);
+    XrmCombineDatabase(cmd, &db, True);
+    XrmSetDatabase(dpy, db);
+}
+
+/* Options > Save Options: the board size, colours and arrows, for the
+   next time 2089 starts (undo stays the command line's). */
+static void saveoptions(void)
+{
+    char file[300], text[340];
+    String appname, appclass;
+    FILE *f;
+    int ok;
+
+    XtGetApplicationNameAndClass(dpy, &appname, &appclass);
+    if (!optionsfile(file)) {
+        say("There's no home directory to save the options in.");
+        return;
+    }
+    if ((f = fopen(file, "w")) == 0)
+        ok = 0;
+    else {
+        ok = fprintf(f, "! xm2089's options, from Options > Save Options.  Resources, as in\n"
+                     "! ~/.Xdefaults: these win over those, the command line over these.\n"
+                     "%s.size: %d\n%s.colours: %s\n%s.mono: false\n"
+                     "%s.extended: %s\n%s.arrows: %s\n", appname, game.size, appname,
+                     scheme == MONO ? "mono" : scheme == DESKTOP ? "desktop" : "game", appname,
+                     appname, res.extended ? "true" : "false",
+                     appname, res.arrows ? "true" : "false") > 0;
+        ok = fclose(f) == 0 && ok;
+    }
+    sprintf(text, ok ? "Options saved in %.250s." : "Can't save the options in %.250s.", file);
+    say(text);
 }
 
 /* ------------------------------------------------------------ leaving */
@@ -1012,7 +1093,7 @@ static void showarrows(int on)
 
 enum {
     M_NEW, M_NUMBER, M_OPEN, M_SAVEAS, M_STRING, M_EXIT, M_UNDO,
-    M_ARROWS, M_SCORES, M_GAME, M_DESKTOP, M_MONO, M_EXTENDED,
+    M_ARROWS, M_SCORES, M_GAME, M_DESKTOP, M_MONO, M_EXTENDED, M_SAVEOPTS,
     M_OVERVIEW, M_KEYS, M_USING, M_ABOUT,
     M_UP, M_DOWN, M_LEFT, M_RIGHT,
     M_SIZE                              /* M_SIZE + n: an n x n board */
@@ -1054,6 +1135,7 @@ static void menu(Widget w, XtPointer client, XtPointer call)
             usescheme(GAME);
         draw();
         break;
+    case M_SAVEOPTS: saveoptions(); break;
     case M_OVERVIEW: helpvolume("2089"); break;
     case M_KEYS:   showkeys(); break;
     case M_USING:  helpvolume("Help4Help"); break;
@@ -1145,6 +1227,8 @@ static Widget menus(Widget parent)
     schemeitem[MONO] = item(m, "Black and White", 'B', "c", M_MONO, 1);
     separator(m);
     extitem = item(m, "Extended Colours", 'E', 0, M_EXTENDED, CHECK);
+    separator(m);
+    item(m, "Save Options", 'O', 0, M_SAVEOPTS, 0);
 
     m = pulldown(bar, "Help", 'H', &cascade);
     item(m, "Overview...", 'v', 0, M_OVERVIEW, 0);
@@ -1370,19 +1454,27 @@ int main(int argc, char **argv)
     Pixel page;
     Atom wmdelete, wmsave;
     const char *file = 0;
-    char why[T89_SAVELEN + 300];
-    int i;
+    char why[T89_SAVELEN + 300], **args;
+    int i, nargs;
 
     program = argv[0];
     name = strrchr(argv[0], '/') ? strrchr(argv[0], '/') + 1 : argv[0];
+    if ((args = (char **) malloc((size_t) (argc + 1) * sizeof *args)) == 0)
+        return EXIT_FAILURE;
+    memcpy(args, argv, (size_t) (argc + 1) * sizeof *args);
+    nargs = argc;
     top = XtVaAppInitialize(&app, CLASS, options, XtNumber(options), &argc, argv,
                             fallback, (char *) 0);
+    dpy = XtDisplay(top);
+    readoptions(nargs, args);
+    free(args);
     XtGetApplicationResources(top, (XtPointer) &res, resources, XtNumber(resources),
                               (ArgList) 0, 0);
-    dpy = XtDisplay(top);
 
     /* What Xt left: ours. */
     f89_defaults(&o);
+    if (res.size >= T89_MINSIZE && res.size <= T89_MAXSIZE)
+        o.size = res.size;
     for (i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-h") == 0)
             usage(EXIT_SUCCESS);

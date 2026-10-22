@@ -83,8 +83,10 @@ desktop, or from a command with <computer>-u<\computer>.
 <computer>-arrows<\computer> to show them from the start.  Best Scores:
 your best score on each size of board, and the top tile in that game.
 * Options: Board Size, from 3 by 3 to 8 by 8, which starts a new game
-(asking first if one is under way); and the colours of the board.  See
-<link Colours>Colours<\link>.
+(asking first if one is under way); and the colours of the board (see
+<link Colours>Colours<\link>).  Save Options keeps the board size, the
+colours and the arrow buttons for the next time 2089 starts, in the file
+<computer>.xm2089<\computer> in your home directory.
 * Help: this help, the keys, help on using help, and about 2089.
 <\list>
 
