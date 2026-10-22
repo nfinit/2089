@@ -21,7 +21,7 @@
 #ifndef T89_H
 #define T89_H
 
-#define T89_VERSION "0.1.0"
+#define T89_VERSION "1.0.0"
 
 #define T89_MINSIZE 2           /* smallest and largest board edge */
 #define T89_MAXSIZE 8
