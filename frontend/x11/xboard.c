@@ -138,7 +138,7 @@ int x89_open(struct x89_board *b, Display *dpy, int screen, Drawable d)
     b->grey = XCreateBitmapFromData(dpy, d, bits, 2, 2);
     b->x = b->y = b->side = 0;
     b->cell = b->gap = 1;
-    b->bevel = 0;
+    b->bevel = b->tight = 0;
     return 0;
 }
 
@@ -146,13 +146,13 @@ int x89_open(struct x89_board *b, Display *dpy, int screen, Drawable d)
 
 void x89_place(struct x89_board *b, int x, int y, int w, int h, int size)
 {
-    int side = w < h ? w : h;
+    int side = w < h ? w : h, k = b->tight ? 16 : 8;
 
-    /* size cells and size + 1 gaps, a gap an eighth of a cell */
-    b->cell = side * 8 / (9 * size + 1);
+    /* size cells and size + 1 gaps, a gap a kth of a cell */
+    b->cell = side * k / ((k + 1) * size + 1);
     if (b->cell < 1)
         b->cell = 1;
-    b->gap = b->cell / 8 > 0 ? b->cell / 8 : 1;
+    b->gap = b->cell / k > 0 ? b->cell / k : 1;
     b->side = size * b->cell + (size + 1) * b->gap;
     b->x = x + (w - b->side) / 2;
     b->y = y + (h - b->side) / 2;

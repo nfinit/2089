@@ -63,8 +63,10 @@ keypad: move.
 * <computer>q<\computer>: exit.
 <\list>
 
-Or play with the mouse: click the arrow buttons beside the board to
-move, and New Game and Undo below them.
+Or play with the mouse: choose Arrow Buttons from the View menu, and
+click the arrow buttons under the board to move.  A click on one in a
+window behind others brings 2089 forward and moves at once.  New Game
+and Undo are under the board too.
 
 
 <s1 id=Menus>Menus
@@ -74,6 +76,8 @@ move, and New Game and Undo below them.
 String, and Exit.
 * Edit: Undo the last move.  Undo is on when 2089 is started from the
 desktop, or from a command with <computer>-u<\computer>.
+* View: Arrow Buttons, to play with the mouse.  Start 2089 with
+<computer>-arrows<\computer> to show them from the start.
 * Options: the colours of the board.  See <link Colours>Colours<\link>.
 * Help: this help, the keys, help on using help, and about 2089.
 <\list>
@@ -120,6 +124,7 @@ squares across.
 * <computer>-r<\computer> <emph>seed<\emph>: the same seed starts the
 same game.
 * <computer>-l<\computer> <emph>savestring<\emph>: play a saved game.
+* <computer>-arrows<\computer>: show the arrow buttons.
 * <computer>-colours<\computer> <computer>game<\computer>,
 <computer>desktop<\computer> or <computer>mono<\computer>: the colour
 scheme.

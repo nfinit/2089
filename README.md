@@ -67,8 +67,9 @@ board code in `frontend/x11`:
 
 - `x2089` (`frontend/x11/xlib`) needs only Xlib (`-lX11`), so it builds wherever X11 does.
 - `xm2089` (`frontend/x11/motif`) is a Motif application in the style of the CDE desktop's
-  own tools: menus, the scores in sunken frames, tiles raised with Motif bevels, arrow
-  buttons to play with the mouse, a status line, and dialogs to start a new game, open
+  own tools, as compact as they are: menus, the scores in sunken fields, tiles raised
+  with Motif bevels, optional arrow buttons to play with the mouse (View > Arrow
+  Buttons, or `-arrows`), a status line, and dialogs to start a new game, open
   and save games as files and copy or paste save strings. Its tiles can take the colours
   of the CDE palette, following Style Manager (`-colours desktop`).
 

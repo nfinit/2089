@@ -6,14 +6,15 @@
  * guides and the desktop's own tools (dtcalc, dtpad):
  *
  *   - a menu bar: File (New Game, Open, Save As, Save String, Exit), Edit
- *     (Undo), Options (Game Colours, Desktop Colours, Black and White) and
- *     Help (Keys, About);
- *   - the score, best score and moves in sunken frames along the top;
- *   - the board in a sunken frame, its tiles raised with Motif bevels (the
- *     shadows Motif works out for each tile's colour) and empty cells sunk
- *     into it;
- *   - beside it, arrow buttons to play with the mouse, and New Game and
- *     Undo buttons;
+ *     (Undo), View (Arrow Buttons), Options (Game Colours, Desktop Colours,
+ *     Black and White) and Help (Overview, Keys, Using Help, About);
+ *   - the score, best score and moves in a row of sunken fields;
+ *   - the board filling a sunken frame, its tiles raised with Motif bevels
+ *     (the shadows Motif works out for each tile's colour) and empty cells
+ *     sunk into it, the gaps between them tight, as Motif's controls are;
+ *   - under it, New Game and Undo buttons, and arrow buttons to play with
+ *     the mouse if View > Arrow Buttons is on (-arrows): clicking one in a
+ *     window behind others brings it forward and moves at once;
  *   - a status line along the bottom.
  *
  * Three colour schemes: the original game's tile colours (the default),
@@ -71,7 +72,7 @@
 
 static XtAppContext app;
 static Widget top, board, message, score[3];
-static Widget undoitem, undobutton, schemeitem[3];
+static Widget undoitem, undobutton, schemeitem[3], arrowsitem, pad;
 static Widget asknew, showsave, opendialog, savedialog, keys, about;
 static Display *dpy;
 static Pixmap buf;                      /* what's in the board's window */
@@ -86,7 +87,7 @@ static int canundo, over;
 
 /* Application resources, settable as options. */
 struct settings {
-    Boolean undo, mono;
+    Boolean undo, mono, arrows;
     String colours;                     /* game, desktop or mono */
 };
 static struct settings res;
@@ -96,6 +97,8 @@ static XtResource resources[] = {
       XtOffsetOf(struct settings, undo), XmRImmediate, (XtPointer) False },
     { (char *) "mono", (char *) "Mono", XmRBoolean, sizeof(Boolean),
       XtOffsetOf(struct settings, mono), XmRImmediate, (XtPointer) False },
+    { (char *) "arrows", (char *) "Arrows", XmRBoolean, sizeof(Boolean),
+      XtOffsetOf(struct settings, arrows), XmRImmediate, (XtPointer) False },
     { (char *) "colours", (char *) "Colours", XmRString, sizeof(String),
       XtOffsetOf(struct settings, colours), XmRImmediate, (XtPointer) "game" }
 };
@@ -103,6 +106,7 @@ static XtResource resources[] = {
 static XrmOptionDescRec options[] = {
     { (char *) "-u", (char *) "*undo", XrmoptionNoArg, (XtPointer) "true" },
     { (char *) "-mono", (char *) "*mono", XrmoptionNoArg, (XtPointer) "true" },
+    { (char *) "-arrows", (char *) "*arrows", XrmoptionNoArg, (XtPointer) "true" },
     { (char *) "-colours", (char *) "*colours", XrmoptionSepArg, (XtPointer) 0 }
 };
 
@@ -112,14 +116,14 @@ static String fallback[] = {
     (char *) "XM2089.iconName: 2089",
     (char *) "XM2089*board.width: 400",
     (char *) "XM2089*board.height: 400",
-    (char *) "XM2089*work.marginWidth: 8",
-    (char *) "XM2089*work.marginHeight: 8",
-    (char *) "XM2089*value.marginWidth: 6",
-    (char *) "XM2089*value.fontList: -*-helvetica-bold-r-normal--*-140-*-*-p-*-iso8859-1",
+    (char *) "XM2089*work.marginWidth: 4",
+    (char *) "XM2089*work.marginHeight: 4",
+    (char *) "XM2089*value.marginWidth: 4",
+    (char *) "XM2089*value.marginHeight: 1",
     (char *) "XM2089*openGame.width: 440",
     (char *) "XM2089*saveGame.width: 440",
-    (char *) "XM2089*pad.width: 108",
-    (char *) "XM2089*pad.height: 108",
+    (char *) "XM2089*pad.width: 69",
+    (char *) "XM2089*pad.height: 46",
     0
 };
 
@@ -298,12 +302,10 @@ static void draw(void)
     XtSetSensitive(undobutton, (Boolean) (res.undo && canundo));
 }
 
-/* Place the board in the drawing area, a little in from the edges. */
+/* Place the board in the drawing area, filling it. */
 static void place(void)
 {
-    int pad = (width < height ? width : height) / 40 + 2;
-
-    x89_place(&brd, pad, pad, (int) width - 2 * pad, (int) height - 2 * pad, game.size);
+    x89_place(&brd, 0, 0, (int) width, (int) height, game.size);
 }
 
 /* A new pixmap for the board's size, and the board placed on it. */
@@ -348,7 +350,7 @@ static void resized(Widget w, XtPointer client, XtPointer call)
 
 static void finish(void)
 {
-    sprintf(command, "%s %s%s", name, res.undo ? "-u " : "",
+    sprintf(command, "%s %s%s%s", name, res.undo ? "-u " : "", res.arrows ? "-arrows " : "",
             scheme == MONO ? "-mono " : scheme == DESKTOP ? "-colours desktop " : "");
     if (f89_bsave() < 0)
         fprintf(stderr, "%s: can't save the high score in %s\n", name, f89_bfile());
@@ -613,7 +615,7 @@ static void showkeys(void)
             "Slide the tiles; two equal tiles that meet join into one.\n"
             "Reach 2048 to win (you can keep going), until no move is left.\n"
             "\n"
-            "Click the arrow buttons, or type on the board:\n"
+            "Type on the board (or click the arrow buttons, in View):\n"
             "    arrows, w a s d, k h j l, 8 4 2 6     move\n"
             "    u    undo (if started with -u)\n"
             "    n    new game\n"
@@ -710,9 +712,20 @@ static void clicked(Widget w, XtPointer client, XEvent *e, Boolean *go)
 
 /* ------------------------------------------------------------ menus */
 
+/* The arrow buttons, shown or not. */
+static void showarrows(int on)
+{
+    res.arrows = (Boolean) (on != 0);
+    if (on)
+        XtManageChild(pad);
+    else
+        XtUnmanageChild(pad);
+    XmToggleButtonSetState(arrowsitem, res.arrows, False);
+}
+
 enum {
     M_NEW, M_OPEN, M_SAVEAS, M_STRING, M_EXIT, M_UNDO,
-    M_GAME, M_DESKTOP, M_MONO, M_OVERVIEW, M_KEYS, M_USING, M_ABOUT,
+    M_ARROWS, M_GAME, M_DESKTOP, M_MONO, M_OVERVIEW, M_KEYS, M_USING, M_ABOUT,
     M_UP, M_DOWN, M_LEFT, M_RIGHT
 };
 
@@ -728,6 +741,9 @@ static void menu(Widget w, XtPointer client, XtPointer call)
     case M_STRING: savestring(); break;
     case M_EXIT:   quit(); break;
     case M_UNDO:   doundo(); break;
+    case M_ARROWS:
+        showarrows(((XmToggleButtonCallbackStruct *) call)->set);
+        break;
     case M_GAME:
     case M_DESKTOP:
     case M_MONO:
@@ -758,7 +774,10 @@ static Widget pulldown(Widget bar, const char *text, int mnemonic, Widget *casca
     return m;
 }
 
-/* An item: a push button, or a toggle if radio, with its key shown. */
+/* An item, with its key shown: a push button, or a toggle (one of many if
+   radio, a check box if CHECK). */
+#define CHECK 2
+
 static Widget item(Widget m, const char *text, int mnemonic, const char *key,
                    int what, int radio)
 {
@@ -771,7 +790,8 @@ static Widget item(Widget m, const char *text, int mnemonic, const char *key,
                                 XmNacceleratorText, k, (char *) 0);
     XmStringFree(k);
     if (radio) {
-        XtVaSetValues(w, XmNindicatorType, XmONE_OF_MANY, (char *) 0);
+        XtVaSetValues(w, XmNindicatorType, radio == CHECK ? XmN_OF_MANY : XmONE_OF_MANY,
+                      (char *) 0);
         XtAddCallback(w, XmNvalueChangedCallback, menu, (XtPointer) (long) what);
     } else
         XtAddCallback(w, XmNactivateCallback, menu, (XtPointer) (long) what);
@@ -800,6 +820,9 @@ static Widget menus(Widget parent)
     m = pulldown(bar, "Edit", 'E', &cascade);
     undoitem = item(m, "Undo", 'U', "u", M_UNDO, 0);
 
+    m = pulldown(bar, "View", 'V', &cascade);
+    arrowsitem = item(m, "Arrow Buttons", 'A', 0, M_ARROWS, CHECK);
+
     m = pulldown(bar, "Options", 'O', &cascade);
     XtVaSetValues(m, XmNradioBehavior, True, (char *) 0);
     schemeitem[GAME] = item(m, "Game Colours", 'G', "c", M_GAME, 1);
@@ -821,60 +844,65 @@ static Widget menus(Widget parent)
 
 /* ------------------------------------------------------------ the layout */
 
-/* A sunken frame with a title, holding a right-aligned number: the nth of
-   three across the top. */
+/* A label and a sunken field holding a right-aligned number: the nth of
+   three in a row. */
 static Widget scorebox(Widget parent, const char *wname, const char *text, int n)
 {
-    Widget f, t;
+    Widget t, f;
 
-    f = XtVaCreateManagedWidget(wname, xmFrameWidgetClass, parent,
-                                XmNshadowType, XmSHADOW_IN,
+    t = XtVaCreateManagedWidget(wname, xmLabelWidgetClass, parent,
                                 XmNtopAttachment, XmATTACH_FORM,
                                 XmNbottomAttachment, XmATTACH_FORM,
                                 XmNleftAttachment, XmATTACH_POSITION,
-                                XmNleftPosition, 3 * n,
-                                XmNleftOffset, n > 0 ? 4 : 0,
-                                XmNrightAttachment, XmATTACH_POSITION,
-                                XmNrightPosition, 3 * n + 3,
-                                XmNrightOffset, n < 2 ? 4 : 0, (char *) 0);
-    t = XtVaCreateManagedWidget("title", xmLabelWidgetClass, f,
-                                XmNframeChildType, XmFRAME_TITLE_CHILD, (char *) 0);
+                                XmNleftPosition, n,
+                                XmNleftOffset, n > 0 ? 6 : 0, (char *) 0);
     label(t, text);
+    f = XtVaCreateManagedWidget("field", xmFrameWidgetClass, parent,
+                                XmNshadowType, XmSHADOW_IN,
+                                XmNtopAttachment, XmATTACH_FORM,
+                                XmNbottomAttachment, XmATTACH_FORM,
+                                XmNleftAttachment, XmATTACH_WIDGET,
+                                XmNleftWidget, t, XmNleftOffset, 2,
+                                XmNrightAttachment, XmATTACH_POSITION,
+                                XmNrightPosition, n + 1, (char *) 0);
     return XtVaCreateManagedWidget("value", xmLabelWidgetClass, f,
-                                   XmNframeChildType, XmFRAME_WORKAREA_CHILD,
                                    XmNalignment, XmALIGNMENT_END,
                                    XmNrecomputeSize, False, (char *) 0);
 }
 
-/* An arrow button in the pad: a 3 x 3 grid of which it takes one square. */
-static void arrow(Widget pad, const char *wname, int dir, int row, int col, int what)
+/* An arrow button in the pad, an inverted T: one square of a 3 x 2 grid
+   (in sixths of the pad, both ways). */
+static void arrow(const char *wname, int dir, int row, int col, int what)
 {
     Widget a;
 
     a = XtVaCreateManagedWidget(wname, xmArrowButtonWidgetClass, pad,
                                 XmNarrowDirection, dir,
                                 XmNtraversalOn, False,
-                                XmNtopAttachment, XmATTACH_POSITION, XmNtopPosition, row,
+                                XmNtopAttachment, XmATTACH_POSITION,
+                                XmNtopPosition, 3 * row,
                                 XmNbottomAttachment, XmATTACH_POSITION,
-                                XmNbottomPosition, row + 1,
-                                XmNleftAttachment, XmATTACH_POSITION, XmNleftPosition, col,
+                                XmNbottomPosition, 3 * row + 3,
+                                XmNleftAttachment, XmATTACH_POSITION,
+                                XmNleftPosition, 2 * col,
                                 XmNrightAttachment, XmATTACH_POSITION,
-                                XmNrightPosition, col + 1,
+                                XmNrightPosition, 2 * col + 2,
                                 (char *) 0);
     XtAddCallback(a, XmNactivateCallback, menu, (XtPointer) (long) what);
 }
 
-static Widget button(Widget parent, const char *wname, const char *text, Widget above,
-                     int offset, int what)
+/* A button in the bottom row, after the one to its left (if any). */
+static Widget button(Widget parent, const char *wname, const char *text, Widget left,
+                     int what)
 {
     Widget b;
 
     b = XtVaCreateManagedWidget(wname, xmPushButtonWidgetClass, parent,
                                 XmNtraversalOn, False,
-                                XmNtopAttachment, XmATTACH_WIDGET, XmNtopWidget, above,
-                                XmNtopOffset, offset,
-                                XmNleftAttachment, XmATTACH_FORM,
-                                XmNrightAttachment, XmATTACH_FORM, (char *) 0);
+                                XmNbottomAttachment, XmATTACH_FORM,
+                                XmNleftAttachment, left ? XmATTACH_WIDGET : XmATTACH_FORM,
+                                XmNleftWidget, left, XmNleftOffset, left ? 4 : 0,
+                                (char *) 0);
     label(b, text);
     XtAddCallback(b, XmNactivateCallback, menu, (XtPointer) (long) what);
     return b;
@@ -882,28 +910,29 @@ static Widget button(Widget parent, const char *wname, const char *text, Widget 
 
 /*
  *  +-----------------------------------------+
- *  | File  Edit  Options                Help |
+ *  | File  Edit  View  Options          Help |
  *  +-----------------------------------------+
- *  | [Score     ] [Best      ] [Moves     ]  |
- *  | +---------------------------+   ^       |
- *  | |                           |  < >      |
- *  | |          board            |   v       |
- *  | |                           | [New Game]|
- *  | |                           | [ Undo   ]|
- *  | +---------------------------+           |
+ *  | Score [   64] Best [ 9184] Moves [   14]|
+ *  | +-------------------------------------+ |
+ *  | |                                     | |
+ *  | |                board                | |
+ *  | |                                     | |
+ *  | +-------------------------------------+ |
+ *  | [New Game] [Undo]                ^    |
+ *  |                                <  v  >  |  (View > Arrow Buttons)
  *  +-----------------------------------------+
  *  | status                                  |
  *  +-----------------------------------------+
  */
 static void layout(Widget mainw)
 {
-    Widget work, scores, frame, controls, pad, newb, status;
+    Widget work, scores, frame, controls, newb, status;
 
     menus(mainw);
     work = XtVaCreateManagedWidget("work", xmFormWidgetClass, mainw, (char *) 0);
 
     scores = XtVaCreateManagedWidget("scores", xmFormWidgetClass, work,
-                                     XmNfractionBase, 9,
+                                     XmNfractionBase, 3,
                                      XmNtopAttachment, XmATTACH_FORM,
                                      XmNleftAttachment, XmATTACH_FORM,
                                      XmNrightAttachment, XmATTACH_FORM, (char *) 0);
@@ -912,30 +941,28 @@ static void layout(Widget mainw)
     score[2] = scorebox(scores, "moves", "Moves", 2);
 
     controls = XtVaCreateManagedWidget("controls", xmFormWidgetClass, work,
-                                       XmNtopAttachment, XmATTACH_WIDGET,
-                                       XmNtopWidget, scores, XmNtopOffset, 8,
+                                       XmNbottomAttachment, XmATTACH_FORM,
+                                       XmNleftAttachment, XmATTACH_FORM,
                                        XmNrightAttachment, XmATTACH_FORM, (char *) 0);
-    pad = XtVaCreateManagedWidget("pad", xmFormWidgetClass, controls,
-                                  XmNfractionBase, 3,
-                                  XmNtopAttachment, XmATTACH_FORM,
-                                  XmNleftAttachment, XmATTACH_FORM,
-                                  XmNrightAttachment, XmATTACH_FORM, (char *) 0);
-    arrow(pad, "up", XmARROW_UP, 0, 1, M_UP);
-    arrow(pad, "left", XmARROW_LEFT, 1, 0, M_LEFT);
-    arrow(pad, "right", XmARROW_RIGHT, 1, 2, M_RIGHT);
-    arrow(pad, "down", XmARROW_DOWN, 2, 1, M_DOWN);
-    newb = button(controls, "newGame", "New Game", pad, 12, M_NEW);
-    undobutton = button(controls, "undo", "Undo", newb, 6, M_UNDO);
+    newb = button(controls, "newGame", "New Game", (Widget) 0, M_NEW);
+    undobutton = button(controls, "undo", "Undo", newb, M_UNDO);
+    pad = XtVaCreateWidget("pad", xmFormWidgetClass, controls,
+                           XmNfractionBase, 6,
+                           XmNbottomAttachment, XmATTACH_FORM,
+                           XmNrightAttachment, XmATTACH_FORM, (char *) 0);
+    arrow("up", XmARROW_UP, 0, 1, M_UP);
+    arrow("left", XmARROW_LEFT, 1, 0, M_LEFT);
+    arrow("down", XmARROW_DOWN, 1, 1, M_DOWN);
+    arrow("right", XmARROW_RIGHT, 1, 2, M_RIGHT);
 
     frame = XtVaCreateManagedWidget("boardFrame", xmFrameWidgetClass, work,
                                     XmNshadowType, XmSHADOW_IN,
                                     XmNtopAttachment, XmATTACH_WIDGET,
-                                    XmNtopWidget, scores, XmNtopOffset, 8,
-                                    XmNbottomAttachment, XmATTACH_FORM,
+                                    XmNtopWidget, scores, XmNtopOffset, 4,
+                                    XmNbottomAttachment, XmATTACH_WIDGET,
+                                    XmNbottomWidget, controls, XmNbottomOffset, 4,
                                     XmNleftAttachment, XmATTACH_FORM,
-                                    XmNrightAttachment, XmATTACH_WIDGET,
-                                    XmNrightWidget, controls, XmNrightOffset, 10,
-                                    (char *) 0);
+                                    XmNrightAttachment, XmATTACH_FORM, (char *) 0);
     board = XtVaCreateManagedWidget("board", xmDrawingAreaWidgetClass, frame,
                                     XmNtraversalOn, True, XmNmarginWidth, 0,
                                     XmNmarginHeight, 0, (char *) 0);
@@ -962,7 +989,7 @@ static void layout(Widget mainw)
 static void saveyourself(Widget w, XtPointer client, XtPointer call)
 {
     static char save[T89_SAVELEN];
-    char *argv[8];
+    char *argv[10];
     int argc = 0;
 
     (void) w;
@@ -972,6 +999,8 @@ static void saveyourself(Widget w, XtPointer client, XtPointer call)
     argv[argc++] = program;
     if (res.undo)
         argv[argc++] = (char *) "-u";
+    if (res.arrows)
+        argv[argc++] = (char *) "-arrows";
     if (scheme != GAME) {
         argv[argc++] = (char *) "-colours";
         argv[argc++] = (char *) (scheme == MONO ? "mono" : "desktop");
@@ -998,12 +1027,13 @@ static void icon(void)
 
 static void usage(int status)
 {
-    printf("usage: %s [X options] [-mono] [-colours game|desktop|mono] [-u] [-s size]\n", name);
-    puts("              [-r seed] [-l savestring] [-v] [-h] [file]");
+    printf("usage: %s [X options] [-mono] [-colours game|desktop|mono] [-arrows] [-u]\n", name);
+    puts("              [-s size] [-r seed] [-l savestring] [-v] [-h] [file]");
     puts("  X options      -display, -geometry, -xrm and the rest");
     puts("  -colours       the board's colours: the game's (the default), the");
     puts("                 desktop palette's (under CDE), or black and white");
     puts("  -mono          black and white, even on a colour display");
+    puts("  -arrows        show the arrow buttons (View > Arrow Buttons)");
     f89_usage();
     puts("  -v             print the version");
     puts("  file           a saved game to open (File > Save As writes them)");
@@ -1060,6 +1090,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "%s: the server has no fonts I can use (not even fixed)\n", name);
         return EXIT_FAILURE;
     }
+    brd.tight = 1;
 
     mainw = XtVaCreateManagedWidget("main", xmMainWindowWidgetClass, top, (char *) 0);
     layout(mainw);
@@ -1069,6 +1100,7 @@ int main(int argc, char **argv)
     desktopcolours();
     for (i = 0; i < 2; i++)
         XtSetSensitive(schemeitem[i], (Boolean) schemes[i].ok);
+    showarrows(res.arrows);
     usescheme(res.mono || strcmp(res.colours, "mono") == 0 ? MONO
               : strcmp(res.colours, "desktop") == 0 ? DESKTOP : GAME);
 

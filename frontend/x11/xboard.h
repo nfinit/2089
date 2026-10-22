@@ -41,6 +41,7 @@ struct x89_board {
     /* Motif-style bevels, if bevel is set: tiles raised, empty cells sunken,
        with these top and bottom shadows (from XmGetColors, say). */
     int bevel;
+    int tight;                  /* 1 for gaps a sixteenth of a cell, not an eighth */
     unsigned long tilets[X89_TILES], tilebs[X89_TILES], emptyts, emptybs;
     Pixmap grey;                /* a 50% stipple, for the mono board */
     int x, y, side;             /* where the board is, after x89_place */
@@ -56,7 +57,8 @@ struct x89_board {
  */
 int x89_open(struct x89_board *b, Display *dpy, int screen, Drawable d);
 
-/* Place a size x size board, as large as fits, centred in the rectangle. */
+/* Place a size x size board, as large as fits, centred in the rectangle,
+   with gaps between the cells an eighth of a cell (a sixteenth if tight). */
 void x89_place(struct x89_board *b, int x, int y, int w, int h, int size);
 
 /* Draw the board and its tiles where x89_place put it. */
