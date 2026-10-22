@@ -1,0 +1,35 @@
+2089 @VERSION@: a binary distribution for AIX
+
+2089 is the game of 2048 in standard C89.  This is a binary distribution
+for AIX on POWER and PowerPC, built with IBM's XL C on AIX 4.3.3.  It needs
+only what AIX installs: the curses library, and X11 and Motif for the two X
+programs.  The source is at https://github.com/nfinit/2089.
+
+  bin/2089       the game on a terminal: full screen, or one line a move
+  bin/x2089      the game in a window of its own, with Xlib only
+  bin/xm2089     the game as a Motif application, with or without CDE
+  man/man6/      their manual pages: 2089(6), x2089(6), xm2089(6)
+  cde/           the CDE action, icons and help volume for xm2089
+
+To install the programs and manual pages in /usr/local (as root):
+
+  ./install.sh
+
+and to put 2089 on the CDE desktop as well, in Application Manager's Games
+group, with saved games that open from File Manager:
+
+  ./install.sh -c
+
+As another user, -c puts the CDE files in your own ~/.dt, and -p names
+another place for the programs:
+
+  ./install.sh -p $HOME -c
+
+./install.sh -n shows what it would do: those are also the files to delete
+to remove 2089.  Each program's -h lists its options.
+
+AIX's man looks in /usr/share/man and /usr/dt/man only.  For the manual
+pages, set MANPATH=/usr/local/man:/usr/share/man:/usr/dt/man (in
+/etc/environment, or your .profile), or run man -M /usr/local/man 2089.
+
+2089 is MIT licensed; see LICENSE.

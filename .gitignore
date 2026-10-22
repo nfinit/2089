@@ -80,3 +80,6 @@ frontend/x11/motif/cde/help/2089.err
 frontend/x11/motif/cde/help/2089.idx
 frontend/x11/motif/cde/help/2089.xrh
 frontend/x11/motif/cde/help/2089.snb
+
+# Binary distributions (make bindist)
+2089-*.tar.Z

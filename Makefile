@@ -14,6 +14,7 @@
 #                        $(PREFIX)/bin, their manual pages in $(PREFIX)/man/man6:
 #                        make x11 install PREFIX=$HOME
 #   make install-cde     put xm2089 on the CDE desktop (see below)
+#   make bindist         a binary distribution for AIX (see below)
 #   make CC=c89 CFLAGS=-O
 #
 # Developer checks (gcc): make strict, make strict-x11
@@ -213,6 +214,36 @@ install-cde:
 	chmod 755 $(DESTDIR)$(DTDIR)/appmanager$(DTLANG)/Games/Xm2089
 	cd $(DESTDIR)$(DTDIR) && chmod 644 types$(DTLANG)/2089.dt icons$(DTLANG)/2089.?.pm \
 	    help$(DTLANG)/2089.sdl
+
+# A binary distribution for AIX: 2089-VERSION-PLATFORM.tar.Z, holding the
+# three programs (stripped), their manual pages, the CDE files with the help
+# volume already built, and dist/aix's README and install.sh.  Build all
+# three programs first, on the oldest AIX it's for:
+#     make CC=/usr/vac/bin/c89 && make CC=/usr/vac/bin/c89 x11 bindist
+PLATFORM = aix4.3.3-ppc
+
+bindist:
+	@for p in frontend/curses/2089 frontend/x11/xlib/x2089 frontend/x11/motif/xm2089; do \
+	    test -x $$p || { echo "2089: bindist needs $$p: make, then make x11"; exit 1; }; done
+	v=`sed -n 's/^#define T89_VERSION "\(.*\)"/\1/p' 2089.h`; d=2089-$$v-$(PLATFORM); \
+	rm -rf $$d $$d.tar $$d.tar.Z && \
+	mkdir -p $$d/bin $$d/man/man6 $$d/cde/types $$d/cde/icons $$d/cde/help \
+	    $$d/cde/appmanager && \
+	cp frontend/curses/2089 frontend/x11/xlib/x2089 frontend/x11/motif/xm2089 $$d/bin/ && \
+	strip $$d/bin/2089 $$d/bin/x2089 $$d/bin/xm2089 && \
+	cp man/2089.6 man/x2089.6 man/xm2089.6 $$d/man/man6/ && \
+	cp $(CDE)/types/2089.dt $$d/cde/types/ && \
+	cp $(CDE)/icons/2089.l.pm $(CDE)/icons/2089.m.pm $(CDE)/icons/2089.t.pm $$d/cde/icons/ && \
+	(cd $(CDE)/help && PATH=/usr/dt/bin:$$PATH $(DTHELPTAG) 2089 >/dev/null) && \
+	cp $(CDE)/help/2089.sdl $$d/cde/help/ && \
+	(cd $(CDE)/help && PATH=/usr/dt/bin:$$PATH $(DTHELPTAG) -clean 2089 >/dev/null) && \
+	echo '# 2089: runs the Xm2089 action' > $$d/cde/appmanager/Xm2089 && \
+	sed -e "s/@VERSION@/$$v/" dist/aix/README > $$d/README && \
+	cp LICENSE dist/aix/install.sh $$d/ && \
+	chmod 755 $$d/bin/* $$d/install.sh $$d/cde/appmanager/Xm2089 && \
+	chmod 644 $$d/README $$d/LICENSE $$d/man/man6/* $$d/cde/types/* $$d/cde/icons/* \
+	    $$d/cde/help/* && \
+	tar -cf $$d.tar $$d && compress $$d.tar && rm -rf $$d && ls -l $$d.tar.Z
 
 # The X11 frontends under the same warnings (needs the X and Motif headers).
 strict-x11:
