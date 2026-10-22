@@ -24,11 +24,17 @@ make check          # run the tests
 
 `make install` copies the program to `/usr/local/bin` (the full program if it was
 built, else the text frontend), with `x2089` and `xm2089` too if `make x11` built
-them. Name another place with `PREFIX`, such as your own `bin`:
+them, and their manual pages, `2089(6)`, `x2089(6)` and `xm2089(6)`, to
+`/usr/local/man/man6`. Name another place with `PREFIX`, such as your own `bin`:
 
 ```sh
-make x11 install PREFIX=$HOME       # ~/bin/2089, ~/bin/x2089 and ~/bin/xm2089
+make x11 install PREFIX=$HOME       # ~/bin/2089 ... and ~/man/man6/2089.6 ...
 ```
+
+The pages are plain `-man` source, which `man` formats itself. AIX's `man` looks only
+in `/usr/share/man` and `/usr/dt/man` unless told otherwise: put
+`MANPATH=/usr/local/man:/usr/share/man:/usr/dt/man` in `/etc/environment` or your
+profile, or try one with `man -M /usr/local/man 2089`.
 
 `make` uses `cc` by default; name another compiler with `CC`:
 

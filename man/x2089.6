@@ -1,0 +1,151 @@
+.\" x2089.6 - the x2089 manual page (-man macros, for nroff and groff alike)
+.\" Author: Claude Opus 5.5 (claude-opus-5-5), October 2026.
+.\" MIT License; see LICENSE.
+.TH X2089 6 "October 2026" "2089 0.1.0" "Games"
+.SH NAME
+x2089 \- the game of 2048, for the X Window System
+.SH SYNOPSIS
+.B x2089
+[
+.B \-display
+.I host:n
+] [
+.B \-geometry
+.I WxH+X+Y
+] [
+.B \-fn
+.I font
+] [
+.B \-mono
+] [
+.B \-u
+] [
+.B \-s
+.I size
+] [
+.B \-r
+.I seed
+] [
+.B \-l
+.I savestring
+]
+.br
+.B x2089
+.B \-v
+|
+.B \-h
+.SH DESCRIPTION
+.B x2089
+is the game of 2048 in a window of its own, drawn with nothing but
+Xlib, so it runs wherever X11 does.
+The rules are those of
+.BR 2089 (6):
+slide the tiles, join equal ones, and reach 2048 to win, then keep going
+if you like until no move is left.
+.PP
+The window can be resized, and the board follows, its numbers in the
+largest bitmap Helvetica Bold the server has that fits.
+The tiles from 2 to 2048 are in the original game's colors; past 2048
+they go from green to blue to violet, as many of those as the
+colormap has room for (the rest in the original's one dark color).
+On a monochrome or grayscale display, or one whose colormap is full,
+the board is black and white, tiles going from outlined to reverse
+video as they grow.
+.B c
+switches between the two.
+.SH OPTIONS
+.TP
+.BI \-display " host:n"
+The X display to use; the default is
+.BR $DISPLAY .
+.TP
+.BI \-geometry " WxH+X+Y"
+The window's size and place.
+.TP
+.BI \-fn " font"
+The font for the score and messages
+.RB ( \-font
+too).
+.TP
+.B \-mono
+Black and white, even on a color display.
+.TP
+.B \-u
+Allow undo.
+.TP
+.BI \-s " size"
+A board
+.I size
+cells across, from 2 to 8.
+The default is 4.
+.TP
+.BI \-r " seed"
+Play game number
+.IR seed ,
+from 0 to 4294967295: the same number and size always deal the same
+game.
+.TP
+.BI \-l " savestring"
+Carry on a saved game.
+.TP
+.B \-v
+Print the version.
+.TP
+.B \-h
+Print a summary of the options.
+.SH KEYS
+Type in the window.
+.TP
+.BR "w a s d" , " k h j l" , " 8 4 2 6" ", or the arrow keys"
+Move up, left, down or right.
+.TP
+.B u
+Undo the last move, if undo is on (\c
+.BR \-u ).
+.TP
+.B n
+Start a new game, after asking.
+.TP
+.B p
+Show the save string of the game being played.
+.TP
+.B c
+Color, or black and white.
+.TP
+.B ?
+The keys, on the board; any key goes back.
+.TP
+.B q
+Quit, printing the command that carries on the game.
+.SH RESOURCES
+Under the program's name, in
+.B ~/.Xdefaults
+or loaded with
+.BR xrdb (1):
+.TP
+.B x2089.geometry
+The window's size and place.
+.TP
+.B x2089.font
+The font for the score and messages.
+.TP
+.B "x2089.mono: true"
+Black and white.
+.PP
+The options on the command line win over these.
+.SH FILES
+.TP
+.B ~/.2089
+The best score for each board size, shared with
+.BR 2089 (6)
+and
+.BR xm2089 (6):
+one save string a line, the game as it stood at its best.
+.SH SEE ALSO
+.BR 2089 (6),
+.BR xm2089 (6),
+.BR xrdb (1)
+.PP
+https://github.com/nfinit/2089
+.SH AUTHOR
+Claude Opus 5.5 (claude-opus-5-5), for 2089, which is MIT licensed.

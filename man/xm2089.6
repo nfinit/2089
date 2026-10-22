@@ -1,0 +1,262 @@
+.\" xm2089.6 - the xm2089 manual page (-man macros, for nroff and groff alike)
+.\" Author: Claude Opus 5.5 (claude-opus-5-5), October 2026.
+.\" MIT License; see LICENSE.
+.TH XM2089 6 "October 2026" "2089 0.1.0" "Games"
+.SH NAME
+xm2089 \- the game of 2048, for Motif, with or without CDE
+.SH SYNOPSIS
+.B xm2089
+[
+.I toolkit options
+] [
+.B \-mono
+] [
+.B \-colors
+.I scheme
+] [
+.B \-extended
+|
+.B +extended
+] [
+.B \-arrows
+] [
+.B \-u
+] [
+.B \-s
+.I size
+] [
+.B \-r
+.I seed
+] [
+.B \-l
+.I savestring
+] [
+.I file
+]
+.br
+.B xm2089
+.B \-v
+|
+.B \-h
+.SH DESCRIPTION
+.B xm2089
+is the game of 2048 as a Motif-native application.
+It runs on its own under any window manager, and integrates with the
+CDE desktop where there is one (see
+.BR "WITHOUT CDE" ,
+below).
+The rules are those of
+.BR 2089 (6):
+slide the tiles, join equal ones, and reach 2048 to win, then keep going
+if you like until no move is left.
+.PP
+The window has a menu bar, the score, best score and moves in a row of
+sunken fields, the board, New Game and Undo buttons, and a status line.
+The board fills the window and follows it when it is resized; the
+window can't be made smaller than its contents need.
+Tiles are raised with Motif's bevels.
+Arrow buttons to play with the mouse can be shown under the board
+(View > Arrow Buttons): a click on one in a window behind others brings
+2089 forward and moves at once.
+.PP
+Every new game has a number, shown on the status line.
+The same number and size always deal the same game, here or in the
+other 2089 programs.
+.SH MENUS
+.TP
+.B File
+New Game, New Game from Number, Open (a saved game), Save As (a file),
+Save String (to copy, or to paste another and play it), Exit.
+.TP
+.B Edit
+Undo, if undo is on.
+.TP
+.B View
+Arrow Buttons; Best Scores, for each board size, with the top tile of
+each, and buttons to clear one size or all of them.
+.TP
+.B Options
+Board Size, from 3 x 3 to 8 x 8, which starts a new game (asking first
+if one is under way); Game Colors, Desktop Colors or Black and White;
+Extended Colors; Save Options.
+.TP
+.B Help
+Overview (the help volume, under CDE), Keys, Using Help, About.
+.SS Colors
+.B Game Colors
+are the original game's, from 2 to 2048, and past 2048 greens, blues
+and violets: the Extended Colors.
+Turn those off, and every tile past 2048 is the original's one dark
+color, which also leaves their colors to other programs on a display
+that has few.
+.B Desktop Colors
+are the colors of the CDE palette chosen in Style Manager, read when
+2089 starts.
+.B Black and White
+is for monochrome displays, which get nothing else.
+The rest of the window always takes the desktop's colors and fonts.
+.SH OPTIONS
+.B xm2089
+takes the X Toolkit's options:
+.BR \-display ,
+.BR \-geometry ,
+.BR \-name ,
+.B \-xrm
+and the rest.
+Its own are:
+.TP
+.B \-mono
+Black and White.
+.TP
+.BI \-colors " scheme"
+The board's colors:
+.B game
+(the default),
+.B desktop
+or
+.BR mono .
+.TP
+.B \-extended
+.PD 0
+.TP
+.B +extended
+.PD
+Extended Colors on (the default) or off.
+.TP
+.B \-arrows
+Show the arrow buttons.
+.TP
+.B \-u
+Allow undo.
+The desktop's action starts 2089 with it.
+.TP
+.BI \-s " size"
+A board
+.I size
+cells across, from 2 to 8.
+The default is 4.
+.TP
+.BI \-r " seed"
+Play game number
+.IR seed ,
+from 0 to 4294967295.
+.TP
+.BI \-l " savestring"
+Carry on a saved game.
+.TP
+.I file
+Open a saved game.
+.TP
+.B \-v
+Print the version.
+.TP
+.B \-h
+Print a summary of the options.
+.SH KEYS
+Type on the board.
+.TP
+.BR "w a s d" , " k h j l" , " 8 4 2 6" ", or the arrow keys"
+Move up, left, down or right.
+.TP
+.B u
+Undo the last move, if undo is on.
+.TP
+.B n
+Start a new game, after asking.
+.TP
+.B p
+Show the save string.
+.TP
+.B c
+The next color scheme.
+.TP
+.B ?
+The keys.
+.TP
+.B q
+Exit.
+.SH RESOURCES
+Application resources, for class
+.BR XM2089 :
+.TP
+.BR undo " (Boolean, false)"
+Allow undo.
+.TP
+.BR size " (Int, 4)"
+The board size of new games.
+.TP
+.BR colors " (String, game)"
+.BR game ,
+.B desktop
+or
+.BR mono .
+.TP
+.BR mono " (Boolean, false)"
+Black and White.
+.TP
+.BR extended " (Boolean, true)"
+Extended Colors.
+.TP
+.BR arrows " (Boolean, false)"
+Show the arrow buttons.
+.PP
+Options > Save Options writes the board size, the colors and the arrow
+buttons to
+.B ~/.xm2089
+as resources, for the next time 2089 starts.
+These win over the user's other resources
+.RB ( ~/.Xdefaults ,
+or what
+.BR xrdb (1)
+loaded), and the command line wins over them.
+.SH FILES
+.TP
+.B ~/.2089
+The best score for each board size, shared with
+.BR 2089 (6)
+and
+.BR x2089 (6):
+one save string a line, the game as it stood at its best.
+.TP
+.B ~/.xm2089
+Saved options.
+.TP
+.IB name .2089
+A saved game (File > Save As): its save string, on one line.
+.SH WITHOUT CDE
+.B xm2089
+needs Motif 2.0 or later and any window manager:
+.BR mwm (1)
+or
+.BR dtwm (1),
+or another.
+Without a CDE session, Desktop Colors is not offered (the palette comes
+from CDE's session manager); Help > Overview and Using Help need CDE's
+help viewer, and show the keys where it is missing; and the window's
+icon is the window manager's own.
+Everything else is the same.
+Built against Motif 1.2, it lacks Desktop Colors altogether.
+.SH THE CDE DESKTOP
+Installed with
+.BR "make install-cde" ,
+2089 is in Application Manager, in a Games group; saved games open from
+File Manager; and Help > Overview opens its help volume,
+.BR 2089 .
+The game being played is saved with the session when you log out, and
+comes back when you log in.
+.PP
+On quitting from a terminal,
+.B xm2089
+prints the command that carries on the game, as
+.BR 2089 (6)
+does.
+.SH SEE ALSO
+.BR 2089 (6),
+.BR x2089 (6),
+.BR xrdb (1),
+.BR mwm (1),
+.BR dthelpview (1)
+.PP
+https://github.com/nfinit/2089
+.SH AUTHOR
+Claude Opus 5.5 (claude-opus-5-5), for 2089, which is MIT licensed.

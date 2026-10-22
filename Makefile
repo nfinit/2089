@@ -11,7 +11,8 @@
 #                        else the text frontend (make run ARGS="-u -s 5")
 #   make check           run the tests: the core's and the frontends' shared code
 #   make install         install 2089 (and x2089 and xm2089, if built) in
-#                        $(PREFIX)/bin: make x11 install PREFIX=$HOME
+#                        $(PREFIX)/bin, their manual pages in $(PREFIX)/man/man6:
+#                        make x11 install PREFIX=$HOME
 #   make install-cde     put xm2089 on the CDE desktop (see below)
 #   make CC=c89 CFLAGS=-O
 #
@@ -25,6 +26,7 @@ X11LIB = -lX11
 MOTIFLIB = -lXm -lXt -lX11
 PREFIX = /usr/local
 BINDIR = $(PREFIX)/bin
+MANDIR = $(PREFIX)/man
 
 CORE = 2089.o rng89.o
 FRONT = frontend/common.o frontend/text/text.o
@@ -124,16 +126,21 @@ test/replay: test/replay.c 2089.h $(CORE)
 
 # 2089 is the full program if it was built, else the text frontend.  The old
 # copy is removed first: some systems (AIX) won't overwrite a program that's
-# running.  DESTDIR is for packaging: the files go there, under BINDIR.
+# running.  DESTDIR is for packaging: the files go there, under BINDIR and
+# MANDIR.  The manual pages are -man source, which man formats itself.
 install: all
-	mkdir -p $(DESTDIR)$(BINDIR)
+	mkdir -p $(DESTDIR)$(BINDIR) $(DESTDIR)$(MANDIR)/man6
+	cp man/2089.6 $(DESTDIR)$(MANDIR)/man6/2089.6
+	chmod 644 $(DESTDIR)$(MANDIR)/man6/2089.6
 	rm -f $(DESTDIR)$(BINDIR)/2089
 	if test -x frontend/curses/2089; then cp frontend/curses/2089 $(DESTDIR)$(BINDIR)/2089; \
 	else cp frontend/text/2089 $(DESTDIR)$(BINDIR)/2089; fi
 	chmod 755 $(DESTDIR)$(BINDIR)/2089
 	for p in frontend/x11/xlib/x2089 frontend/x11/motif/xm2089; do \
 	    if test -x $$p; then b=`basename $$p`; rm -f $(DESTDIR)$(BINDIR)/$$b && \
-	        cp $$p $(DESTDIR)$(BINDIR)/$$b && chmod 755 $(DESTDIR)$(BINDIR)/$$b || exit 1; fi; \
+	        cp $$p $(DESTDIR)$(BINDIR)/$$b && chmod 755 $(DESTDIR)$(BINDIR)/$$b && \
+	        cp man/$$b.6 $(DESTDIR)$(MANDIR)/man6/$$b.6 && \
+	        chmod 644 $(DESTDIR)$(MANDIR)/man6/$$b.6 || exit 1; fi; \
 	done
 
 check: test/t89test test/front

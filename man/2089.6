@@ -1,0 +1,231 @@
+.\" 2089.6 - the 2089 manual page (-man macros, for nroff and groff alike)
+.\" Author: Claude Opus 5.5 (claude-opus-5-5), October 2026.
+.\" MIT License; see LICENSE.
+.TH 2089 6 "October 2026" "2089 0.1.0" "Games"
+.SH NAME
+2089 \- the game of 2048, for terminals
+.SH SYNOPSIS
+.B 2089
+[
+.B \-t
+] [
+.B \-k
+|
+.B \-K
+] [
+.B \-m
+|
+.B \-p
+] [
+.B \-a
+] [
+.B \-u
+] [
+.B \-s
+.I size
+] [
+.B \-r
+.I seed
+] [
+.B \-l
+.I savestring
+]
+.br
+.B 2089
+.B \-v
+|
+.B \-h
+.SH DESCRIPTION
+.B 2089
+is the game of 2048, after Gabriele Cirulli's.
+Each move slides every tile on the board as far as it will go, up,
+down, left or right.
+Two tiles of the same number that meet join into one worth both, and
+the score goes up by its value.
+After every move a new tile, a 2 or now and then a 4, appears in an
+empty cell.
+Reach 2048 to win; then keep going if you like, until no move is left.
+.PP
+.B 2089
+plays full screen, through curses, when the terminal can.
+It falls back to line mode by itself when the input or output is not a
+terminal, when
+.B TERM
+is unknown or names a hardcopy terminal, when the screen is too small
+for the board, or when asked with
+.BR \-t .
+A
+.B 2089
+built without curses plays in line mode only.
+.SS Full screen
+Every key is a move, as in the original game.
+The board is drawn in one of three styles, the best the terminal can
+show, and
+.B c
+switches between them:
+.TP
+.B color
+tiles on colored backgrounds, with 256, 16 or 8 colors;
+.TP
+.B mono
+tiles in bold and reverse video;
+.TP
+.B plain
+numbers only, with no video attributes, for terminals whose attributes
+take up a place on the screen (the Wyse 50, for one).
+These get plain without asking.
+.PP
+Cells are three lines high where there's room, and one line high on a
+line of 4800 baud or less in color or mono, which sends about a third
+as much on each move.
+Box lines use the terminal's line-drawing characters where it has them.
+.SS Line mode
+One line is one move: type a key, then Return.
+If a line holds several keys, the last one counts.
+.B n
+and
+.B q
+count only on a line of their own, so a slip can't end a game, and
+Return alone draws the board again.
+Arrow keys work here too.
+.SH OPTIONS
+.TP
+.B \-t
+Line mode, even on a terminal that could play full screen.
+.TP
+.B \-k
+Compact: cells one line high full screen; in line mode, the compact
+display (one line of numbers for each row), for slow lines and paper.
+.TP
+.B \-K
+Not compact: tall cells even on a slow line, and the boxed display in
+line mode.
+.TP
+.B \-m
+Mono: no color, tiles in bold and reverse video.
+.TP
+.B \-p
+Plain: no video attributes at all.
+.TP
+.B \-a
+Draw boxes with
+.BR + ,
+.B \-
+and
+.B |
+instead of line-drawing characters.
+.TP
+.B \-u
+Allow undo.
+Undo is off unless asked for: living with a bad move is part of the
+game.
+.TP
+.BI \-s " size"
+A board
+.I size
+cells across, from 2 to 8.
+The default is 4.
+.TP
+.BI \-r " seed"
+Play game number
+.IR seed ,
+from 0 to 4294967295.
+The same number and size always deal the same game, in any 2089
+program.
+.TP
+.BI \-l " savestring"
+Carry on a saved game.
+.TP
+.B \-v
+Print the version.
+.TP
+.B \-h
+Print a summary of the options.
+.PP
+.BR \-t ,
+.BR \-m ,
+.B \-p
+and
+.B \-a
+are only in a
+.B 2089
+built with curses.
+.SH KEYS
+.TP
+.BR "w a s d" , " k h j l" , " 8 4 2 6" ", or the arrow keys"
+Move up, left, down or right.
+.TP
+.B u
+Undo the last move, if undo is on (\c
+.BR \-u ).
+.TP
+.B n
+Start a new game: full screen after asking, in line mode on a line of
+its own.
+.TP
+.B p
+Show the save string of the game being played.
+.TP
+.B c
+Full screen, the next display style; in line mode, the compact display
+on or off.
+.TP
+.B ?
+The keys.
+.TP
+.B ^L
+Draw the screen again (full screen).
+.TP
+.B q
+Quit, printing the command that carries on the game.
+.SH SAVE STRINGS
+A game can be written as a short string of digits, small letters and
+dots, safe to copy anywhere: into a mail message, a file name or a URL.
+.B p
+shows it,
+.B \-l
+plays it, and on quitting
+.B 2089
+prints the command that carries on, such as
+.PP
+.RS
+.nf
+to carry on later: 2089 \-u \-l 14b1000100000000000.0.0.3a10575b
+.fi
+.RE
+.PP
+The strings are the same in
+.B x2089
+and
+.BR xm2089 .
+.SH FILES
+.TP
+.B ~/.2089
+The best score for each board size, kept full screen and by the X
+programs: one save string a line, the game as it stood at its best, so
+that
+.B 2089 \-l
+brings it back.
+A
+.B 2089
+built with
+.B T89_SCORES
+defined keeps them in the file it names instead.
+.SH ENVIRONMENT
+.TP
+.B TERM
+The terminal, for curses.
+.TP
+.B HOME
+Where the best scores are kept.
+.SH EXIT STATUS
+0 when the game is quit; more than 0 after a bad option or save string,
+or when stopped by a signal (the command that carries on is printed
+even then).
+.SH SEE ALSO
+.BR x2089 (6),
+.BR xm2089 (6)
+.PP
+https://github.com/nfinit/2089
+.SH AUTHOR
+Claude Opus 5.5 (claude-opus-5-5), for 2089, which is MIT licensed.
