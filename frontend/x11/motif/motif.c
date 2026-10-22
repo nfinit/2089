@@ -81,8 +81,8 @@ static Widget undoitem, undobutton, schemeitem[3], arrowsitem, pad;
 static Widget menubar, scorelabel[3], work, controls, newbutton;
 static Widget sizeitem[T89_MAXSIZE + 1], extitem;
 static Widget asknew, showsave, opendialog, savedialog, keys, about, numberdialog;
-static Widget scoresdialog;
-static Widget scoretext[T89_MAXSIZE + 1][3];
+static Widget scoresdialog, askclear;
+static Widget scoretext[T89_MAXSIZE + 1][4];   /* [n][3]: its Clear button */
 static Display *dpy;
 static Pixmap buf;                      /* what's in the board's window */
 static Dimension width, height;         /* its size */
@@ -794,34 +794,13 @@ static void asknumber(void)
     XtManageChild(numberdialog);
 }
 
-/* Each board size's best score, and the top tile in that game. */
-static void showscores(void)
+/* The Best Scores table, as the records are now. */
+static void fillscores(void)
 {
-    static const char *head[3] = { "Board", "Best", "Top Tile" };
     struct t89_game g;
     char text[300];
-    Widget table;
-    int n, i;
+    int n;
 
-    if (!scoresdialog) {
-        scoresdialog = XmCreateInformationDialog(top, (char *) "bestScores", (ArgList) 0, 0);
-        title(scoresdialog, "2089 - Best Scores");
-        only(scoresdialog, 1, 0, 0);
-        table = XtVaCreateManagedWidget("table", xmRowColumnWidgetClass, scoresdialog,
-                                        XmNorientation, XmHORIZONTAL,
-                                        XmNpacking, XmPACK_COLUMN,
-                                        XmNnumColumns, T89_MAXSIZE - T89_MINSIZE + 2,
-                                        XmNentryAlignment, XmALIGNMENT_END,
-                                        XmNspacing, 0, (char *) 0);
-        for (n = T89_MINSIZE - 1; n <= T89_MAXSIZE; n++)
-            for (i = 0; i < 3; i++) {
-                scoretext[n][i] = XtVaCreateManagedWidget("entry", xmLabelWidgetClass, table,
-                                                          XmNmarginWidth, 8,
-                                                          XmNmarginHeight, 1, (char *) 0);
-                if (n < T89_MINSIZE)
-                    label(scoretext[n][i], head[i]);
-            }
-    }
     for (n = T89_MINSIZE; n <= T89_MAXSIZE; n++) {
         sprintf(text, "%d x %d", n, n);
         label(scoretext[n][0], text);
@@ -834,7 +813,100 @@ static void showscores(void)
             label(scoretext[n][1], "-");
             label(scoretext[n][2], "-");
         }
+        XtSetSensitive(scoretext[n][3], (Boolean) (f89_btop(n) > 0));
     }
+}
+
+/* Clearing asked for and agreed to: one size's record, or all (0). */
+static void cleared(Widget w, XtPointer client, XtPointer call)
+{
+    char text[300];
+
+    (void) w;
+    (void) call;
+    if (f89_bclear((int) (long) client) < 0) {
+        sprintf(text, "Can't clear the best scores in %.250s.", f89_bfile());
+        say(text);
+    }
+    draw();                             /* this game may be the best now */
+    fillscores();
+}
+
+/* Clear a size's best score (all, if 0)?  Asked first. */
+static void clearscores(Widget w, XtPointer client, XtPointer call)
+{
+    int size = (int) (long) client;
+    char text[128];
+
+    (void) w;
+    (void) call;
+    if (!askclear) {
+        askclear = XmCreateQuestionDialog(scoresdialog, (char *) "clearScores",
+                                          (ArgList) 0, 0);
+        title(askclear, "2089 - Clear Best Scores");
+        settext(askclear, XmNokLabelString, "Clear");
+        only(askclear, 1, 1, 0);
+        /* Return keeps them, as the style guide has it for what can't be undone */
+        XtVaSetValues(askclear, XmNdefaultButtonType, XmDIALOG_CANCEL_BUTTON, (char *) 0);
+    }
+    XtRemoveAllCallbacks(askclear, XmNokCallback);
+    XtAddCallback(askclear, XmNokCallback, cleared, (XtPointer) (long) size);
+    if (size)
+        sprintf(text, "Clear the best score for %d x %d?", size, size);
+    else
+        strcpy(text, "Clear the best scores for every size?");
+    settext(askclear, XmNmessageString, text);
+    XtManageChild(askclear);
+}
+
+/* Each board size's best score and the top tile in that game, each with a
+   button to clear it, and one to clear them all. */
+static void showscores(void)
+{
+    static const char *head[4] = { "Board", "Best", "Top Tile", "" };
+    char text[300];
+    Widget form, table, all;
+    int n, i;
+
+    if (!scoresdialog) {
+        scoresdialog = XmCreateInformationDialog(top, (char *) "bestScores", (ArgList) 0, 0);
+        title(scoresdialog, "2089 - Best Scores");
+        only(scoresdialog, 1, 0, 0);
+        form = XtVaCreateManagedWidget("work", xmFormWidgetClass, scoresdialog, (char *) 0);
+        table = XtVaCreateManagedWidget("table", xmRowColumnWidgetClass, form,
+                                        XmNorientation, XmHORIZONTAL,
+                                        XmNpacking, XmPACK_COLUMN,
+                                        XmNnumColumns, T89_MAXSIZE - T89_MINSIZE + 2,
+                                        XmNentryAlignment, XmALIGNMENT_END,
+                                        XmNspacing, 0,
+                                        XmNtopAttachment, XmATTACH_FORM,
+                                        XmNleftAttachment, XmATTACH_FORM,
+                                        XmNrightAttachment, XmATTACH_FORM, (char *) 0);
+        for (n = T89_MINSIZE - 1; n <= T89_MAXSIZE; n++)
+            for (i = 0; i < 4; i++) {
+                if (i == 3 && n >= T89_MINSIZE) {
+                    scoretext[n][i] = XtVaCreateManagedWidget("clear", xmPushButtonWidgetClass,
+                                                              table, XmNmarginHeight, 0,
+                                                              (char *) 0);
+                    label(scoretext[n][i], "Clear");
+                    XtAddCallback(scoretext[n][i], XmNactivateCallback, clearscores,
+                                  (XtPointer) (long) n);
+                    continue;
+                }
+                scoretext[n][i] = XtVaCreateManagedWidget("entry", xmLabelWidgetClass, table,
+                                                          XmNmarginWidth, 8,
+                                                          XmNmarginHeight, 1, (char *) 0);
+                if (n < T89_MINSIZE)
+                    label(scoretext[n][i], head[i]);
+            }
+        all = XtVaCreateManagedWidget("clearAll", xmPushButtonWidgetClass, form,
+                                      XmNtopAttachment, XmATTACH_WIDGET,
+                                      XmNtopWidget, table, XmNtopOffset, 8,
+                                      XmNrightAttachment, XmATTACH_FORM, (char *) 0);
+        label(all, "Clear All...");
+        XtAddCallback(all, XmNactivateCallback, clearscores, (XtPointer) 0);
+    }
+    fillscores();
     if (f89_bfile()[0])
         sprintf(text, "Best scores, kept in %.250s:", f89_bfile());
     else

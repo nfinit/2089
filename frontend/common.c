@@ -260,14 +260,14 @@ const char *f89_brec(int size)
     return f89_btop(size) > 0 ? record[size] : "";
 }
 
-int f89_bsave(void)
+/* Write the records held, as they are. */
+static int writescores(void)
 {
     FILE *f;
     int n, ok;
 
-    if (!dirty || !scorefile[0])
+    if (!scorefile[0])
         return 0;
-    readscores();
     if ((f = fopen(scorefile, "w")) == 0)
         return -1;
     for (n = T89_MINSIZE; n <= T89_MAXSIZE; n++)
@@ -277,6 +277,27 @@ int f89_bsave(void)
     if (ok)
         dirty = 0;
     return ok ? 0 : -1;
+}
+
+int f89_bsave(void)
+{
+    if (!dirty || !scorefile[0])
+        return 0;
+    readscores();
+    return writescores();
+}
+
+int f89_bclear(int size)
+{
+    int n;
+
+    readscores();                       /* the other sizes, as they are now */
+    for (n = T89_MINSIZE; n <= T89_MAXSIZE; n++)
+        if (size == 0 || n == size) {
+            recscore[n] = 0;
+            record[n][0] = '\0';
+        }
+    return writescores();               /* not f89_bsave: no merging them back */
 }
 
 const char *f89_bfile(void)

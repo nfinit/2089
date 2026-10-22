@@ -71,7 +71,7 @@ board code in `frontend/x11`:
   with Motif bevels, optional arrow buttons to play with the mouse (View > Arrow
   Buttons, or `-arrows`), a status line, and dialogs to start a new game (of another
   size, or by its number), open and save games as files, copy or paste save strings and
-  see the best score for each size. Its tiles can take the colours of the CDE palette,
+  see (or clear) the best score for each size. Its tiles can take the colours of the CDE palette,
   following Style Manager (`-colours desktop`); past 2048, Options > Extended Colours
   (on unless `+extended`) can be turned off for the original's one dark colour.
 

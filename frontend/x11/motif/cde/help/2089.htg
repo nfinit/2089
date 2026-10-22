@@ -82,6 +82,8 @@ desktop, or from a command with <computer>-u<\computer>.
 * View: Arrow Buttons, to play with the mouse.  Start 2089 with
 <computer>-arrows<\computer> to show them from the start.  Best Scores:
 your best score on each size of board, and the top tile in that game.
+Clear one to start that size afresh, or Clear All.  (Another 2089
+playing at the same time may still put back the score it knew.)
 * Options: Board Size, from 3 by 3 to 8 by 8, which starts a new game
 (asking first if one is under way); and the colours of the board (see
 <link Colours>Colours<\link>).  Save Options keeps the board size, the
