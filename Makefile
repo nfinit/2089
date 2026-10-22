@@ -12,6 +12,7 @@
 #   make check           run the tests: the core's and the frontends' shared code
 #   make install         install 2089 (and x2089 and xm2089, if built) in
 #                        $(PREFIX)/bin: make x11 install PREFIX=$HOME
+#   make install-cde     put xm2089 on the CDE desktop (see below)
 #   make CC=c89 CFLAGS=-O
 #
 # Developer checks (gcc): make strict, make strict-x11
@@ -177,6 +178,34 @@ strict:
 	gcc $(STRICT) -I. -Ifrontend -o /tmp/2089-front test/front.c frontend/common.c 2089.c rng89.c
 	/tmp/2089-test
 	/tmp/2089-front
+
+# xm2089 on the CDE desktop: the action and icons that put 2089 in
+# Application Manager (a Games group) and open saved games from File Manager,
+# and the help volume (built with CDE's dthelptag).  For yourself, in
+# ~/.dt; for everyone, as root:
+#     make install-cde DTDIR=/etc/dt/appconfig DTLANG=/C
+# The action runs $(BINDIR)/xm2089, so install that too (make install).
+# Then choose Reload Actions and Reload Applications in Application
+# Manager's Desktop_Tools (or log out and in).
+DTDIR = $(HOME)/.dt
+DTLANG =
+CDE = frontend/x11/motif/cde
+DTHELPTAG = /usr/dt/bin/dthelptag
+
+install-cde:
+	mkdir -p $(DESTDIR)$(DTDIR)/types$(DTLANG) $(DESTDIR)$(DTDIR)/icons$(DTLANG) \
+	    $(DESTDIR)$(DTDIR)/help$(DTLANG) $(DESTDIR)$(DTDIR)/appmanager$(DTLANG)/Games
+	sed 's|@BINDIR@|$(BINDIR)|g' $(CDE)/types/2089.dt > $(DESTDIR)$(DTDIR)/types$(DTLANG)/2089.dt
+	cp $(CDE)/icons/2089.l.pm $(CDE)/icons/2089.m.pm $(CDE)/icons/2089.t.pm \
+	    $(DESTDIR)$(DTDIR)/icons$(DTLANG)/
+	cd $(CDE)/help && PATH=/usr/dt/bin:$$PATH $(DTHELPTAG) 2089 >/dev/null
+	cp $(CDE)/help/2089.sdl $(DESTDIR)$(DTDIR)/help$(DTLANG)/2089.sdl
+	cd $(CDE)/help && PATH=/usr/dt/bin:$$PATH $(DTHELPTAG) -clean 2089 >/dev/null
+	rm -f $(DESTDIR)$(DTDIR)/appmanager$(DTLANG)/Games/Xm2089
+	echo '# 2089: runs the Xm2089 action' > $(DESTDIR)$(DTDIR)/appmanager$(DTLANG)/Games/Xm2089
+	chmod 755 $(DESTDIR)$(DTDIR)/appmanager$(DTLANG)/Games/Xm2089
+	cd $(DESTDIR)$(DTDIR) && chmod 644 types$(DTLANG)/2089.dt icons$(DTLANG)/2089.?.pm \
+	    help$(DTLANG)/2089.sdl
 
 # The X11 frontends under the same warnings (needs the X and Motif headers).
 strict-x11:

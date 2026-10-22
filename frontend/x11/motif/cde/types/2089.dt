@@ -1,0 +1,47 @@
+#
+# 2089.dt - CDE actions and data types for xm2089, 2089's Motif frontend:
+# the action that Application Manager shows (in the Games group), and
+# saved games (*.2089) that open in 2089 from File Manager.
+#
+# make install-cde puts this in ~/.dt/types (or a system's
+# /etc/dt/appconfig/types/C) with @BINDIR@ replaced by the folder xm2089
+# is installed in.
+#
+# Author: Claude Opus 5.5 (claude-opus-5-5), October 2026.
+# MIT License; see LICENSE.
+#
+
+set DtDbVersion=1.0
+
+ACTION Xm2089
+{
+	LABEL		2089
+	TYPE		COMMAND
+	EXEC_STRING	@BINDIR@/xm2089 -u %Args%
+	ICON		2089
+	WINDOW_TYPE	NO_STDIO
+	DESCRIPTION	2089 is the game of 2048 for the desktop. Slide \
+			the tiles, and join equal ones on your way to 2048.
+}
+
+DATA_ATTRIBUTES 2089Game
+{
+	ACTIONS		Open
+	ICON		2089
+	DESCRIPTION	A saved game of 2089. Double-click it to play it.
+}
+
+DATA_CRITERIA 2089Game1
+{
+	DATA_ATTRIBUTES_NAME	2089Game
+	MODE			f
+	NAME_PATTERN		*.2089
+}
+
+ACTION Open
+{
+	LABEL		Open
+	ARG_TYPE	2089Game
+	TYPE		MAP
+	MAP_ACTION	Xm2089
+}

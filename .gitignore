@@ -75,3 +75,8 @@ frontend/x11/*/xboard.c
 frontend/x11/*/common.c
 frontend/x11/*/2089.c
 frontend/x11/*/rng89.c
+frontend/x11/motif/cde/help/2089.sdl
+frontend/x11/motif/cde/help/2089.err
+frontend/x11/motif/cde/help/2089.idx
+frontend/x11/motif/cde/help/2089.xrh
+frontend/x11/motif/cde/help/2089.snb

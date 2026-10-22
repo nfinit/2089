@@ -32,6 +32,11 @@
  * are read the X way, for class XM2089.  Fallback resources compiled in
  * stand in for an app-defaults file.
  *
+ * On the CDE desktop (with make install-cde, files in motif/cde): an
+ * action and icons, so 2089 is in Application Manager and saved games
+ * open from File Manager; a help volume for Help > Overview; and the game
+ * is saved with the session, to come back at the next login.
+ *
  * Author: Claude Opus 5.5 (claude-opus-5-5), October 2026.
  * MIT License; see LICENSE.
  */
@@ -73,6 +78,7 @@ static Pixmap buf;                      /* what's in the board's window */
 static Dimension width, height;         /* its size */
 static struct x89_board brd;
 static const char *name;
+static char *program;                   /* argv[0], to restart a session with */
 
 static struct t89_game game, undo;
 static char command[64];                /* how to restart: program and options */
@@ -525,7 +531,28 @@ static void savestring(void)
     XtManageChild(showsave);
 }
 
-/* Games in files: a file holds a save string on its first line. */
+/* Games in files: a file holds a save string on its first line.  Open one
+   into g; 0 if it worked, else -1 with why in text. */
+static int readgame(const char *file, struct t89_game *g, char *text)
+{
+    char line[T89_SAVELEN + 2];
+    FILE *f;
+
+    if ((f = fopen(file, "r")) == 0) {
+        sprintf(text, "Can't open %.250s.", file);
+        return -1;
+    }
+    if (!fgets(line, (int) sizeof line, f))
+        line[0] = '\0';
+    fclose(f);
+    line[strcspn(line, "\r\n")] = '\0';
+    if (t89_load(g, line) < 0) {
+        sprintf(text, "%.250s isn't a saved game.", file);
+        return -1;
+    }
+    return 0;
+}
+
 static void filed(Widget w, XtPointer client, XtPointer call)
 {
     XmFileSelectionBoxCallbackStruct *cb = (XmFileSelectionBoxCallbackStruct *) call;
@@ -546,20 +573,10 @@ static void filed(Widget w, XtPointer client, XtPointer call)
         else
             sprintf(text, "Saved in %.250s.", file);
         say(text);
-    } else if ((f = fopen(file, "r")) == 0) {
-        sprintf(text, "Can't open %.250s.", file);
+    } else if (readgame(file, &g, text) < 0)
         say(text);
-    } else {
-        if (!fgets(line, (int) sizeof line, f))
-            line[0] = '\0';
-        fclose(f);
-        line[strcspn(line, "\r\n")] = '\0';
-        if (t89_load(&g, line) < 0) {
-            sprintf(text, "%.250s isn't a saved game.", file);
-            say(text);
-        } else
-            start(&g);
-    }
+    else
+        start(&g);
     XtFree(file);
 }
 
@@ -606,6 +623,27 @@ static void showkeys(void)
         only(keys, 1, 0, 0);
     }
     XtManageChild(keys);
+}
+
+/*
+ * CDE's help viewer on a help volume: 2089's own (frontend/x11/motif/cde,
+ * installed with make install-cde), or Help4Help, CDE's help on using help.
+ * Without the viewer (no CDE), the keys instead.
+ */
+static void helpvolume(const char *volume)
+{
+    static const char viewer[] = "/usr/dt/bin/dthelpview";
+    char cmd[128];
+    FILE *f;
+
+    if ((f = fopen(viewer, "r")) == 0) {
+        showkeys();
+        return;
+    }
+    fclose(f);
+    sprintf(cmd, "%s -helpVolume %s &", viewer, volume);
+    if (system(cmd) != 0)
+        showkeys();
 }
 
 static void showabout(void)
@@ -674,7 +712,7 @@ static void clicked(Widget w, XtPointer client, XEvent *e, Boolean *go)
 
 enum {
     M_NEW, M_OPEN, M_SAVEAS, M_STRING, M_EXIT, M_UNDO,
-    M_GAME, M_DESKTOP, M_MONO, M_KEYS, M_ABOUT,
+    M_GAME, M_DESKTOP, M_MONO, M_OVERVIEW, M_KEYS, M_USING, M_ABOUT,
     M_UP, M_DOWN, M_LEFT, M_RIGHT
 };
 
@@ -698,7 +736,9 @@ static void menu(Widget w, XtPointer client, XtPointer call)
             draw();
         }
         break;
+    case M_OVERVIEW: helpvolume("2089"); break;
     case M_KEYS:   showkeys(); break;
+    case M_USING:  helpvolume("Help4Help"); break;
     case M_ABOUT:  showabout(); break;
     case M_UP:     play(F89_UP); break;
     case M_DOWN:   play(F89_DOWN); break;
@@ -767,7 +807,10 @@ static Widget menus(Widget parent)
     schemeitem[MONO] = item(m, "Black and White", 'B', "c", M_MONO, 1);
 
     m = pulldown(bar, "Help", 'H', &cascade);
+    item(m, "Overview...", 'v', 0, M_OVERVIEW, 0);
     item(m, "Keys...", 'K', "?", M_KEYS, 0);
+    separator(m);
+    item(m, "Using Help...", 'U', 0, M_USING, 0);
     separator(m);
     item(m, "About 2089...", 'A', 0, M_ABOUT, 0);
     XtVaSetValues(bar, XmNmenuHelpWidget, cascade, (char *) 0);
@@ -908,29 +951,77 @@ static void layout(Widget mainw)
     XtVaSetValues(mainw, XmNworkWindow, work, XmNmessageWindow, status, (char *) 0);
 }
 
+/* ------------------------------------------------------------ the desktop */
+
+/*
+ * The session manager is saving the session (logging out of CDE, say):
+ * set WM_COMMAND to the command that brings this game back, which is what
+ * it will run at the next login.  (CDE's dtsession, like the X11R5-era
+ * managers, uses the ICCCM's WM_SAVE_YOURSELF.)
+ */
+static void saveyourself(Widget w, XtPointer client, XtPointer call)
+{
+    static char save[T89_SAVELEN];
+    char *argv[8];
+    int argc = 0;
+
+    (void) w;
+    (void) client;
+    (void) call;
+    t89_save(&game, save, sizeof save);
+    argv[argc++] = program;
+    if (res.undo)
+        argv[argc++] = (char *) "-u";
+    if (scheme != GAME) {
+        argv[argc++] = (char *) "-colours";
+        argv[argc++] = (char *) (scheme == MONO ? "mono" : "desktop");
+    }
+    argv[argc++] = (char *) "-l";
+    argv[argc++] = save;
+    XSetCommand(dpy, XtWindow(top), argv, argc);
+}
+
+/* The window's icon: 2089's, from the desktop's icon path (XMICONSEARCHPATH,
+   where make install-cde puts it), if it's there. */
+static void icon(void)
+{
+    Pixel fg, bg;
+    Pixmap p;
+
+    XtVaGetValues(top, XmNforeground, &fg, XmNbackground, &bg, (char *) 0);
+    p = XmGetPixmap(XtScreen(top), (char *) "2089.l", fg, bg);
+    if (p != XmUNSPECIFIED_PIXMAP)
+        XtVaSetValues(top, XmNiconPixmap, p, (char *) 0);
+}
+
 /* ------------------------------------------------------------ main */
 
 static void usage(int status)
 {
     printf("usage: %s [X options] [-mono] [-colours game|desktop|mono] [-u] [-s size]\n", name);
-    puts("              [-r seed] [-l savestring] [-v] [-h]");
+    puts("              [-r seed] [-l savestring] [-v] [-h] [file]");
     puts("  X options      -display, -geometry, -xrm and the rest");
     puts("  -colours       the board's colours: the game's (the default), the");
     puts("                 desktop palette's (under CDE), or black and white");
     puts("  -mono          black and white, even on a colour display");
     f89_usage();
     puts("  -v             print the version");
+    puts("  file           a saved game to open (File > Save As writes them)");
     exit(status);
 }
 
 int main(int argc, char **argv)
 {
     struct f89_options o;
+    struct t89_game g;
     Widget mainw;
     Pixel page;
-    Atom wmdelete;
+    Atom wmdelete, wmsave;
+    const char *file = 0;
+    char why[T89_SAVELEN + 300];
     int i;
 
+    program = argv[0];
     name = strrchr(argv[0], '/') ? strrchr(argv[0], '/') + 1 : argv[0];
     top = XtVaAppInitialize(&app, CLASS, options, XtNumber(options), &argc, argv,
                             fallback, (char *) 0);
@@ -947,12 +1038,22 @@ int main(int argc, char **argv)
             printf("2089 %s (Motif %d.%d)\n", T89_VERSION, XmVERSION, XmREVISION);
             return EXIT_SUCCESS;
         }
+        if (argv[i][0] != '-' && !file) {
+            file = argv[i];
+            continue;
+        }
         if (f89_option(argc, argv, &i, &o) <= 0)
             usage(EXIT_FAILURE);
     }
     if (o.undo)
         res.undo = True;
-    if (f89_start(&game, &o, name) < 0)
+    if (file) {
+        if (readgame(file, &g, why) < 0) {
+            fprintf(stderr, "%s: %s\n", name, why);
+            return EXIT_FAILURE;
+        }
+        game = g;
+    } else if (f89_start(&game, &o, name) < 0)
         return EXIT_FAILURE;
 
     if (x89_open(&brd, dpy, DefaultScreen(dpy), RootWindow(dpy, DefaultScreen(dpy))) < 0) {
@@ -974,6 +1075,9 @@ int main(int argc, char **argv)
     XtVaSetValues(top, XmNdeleteResponse, XmDO_NOTHING, (char *) 0);
     wmdelete = XmInternAtom(dpy, (char *) "WM_DELETE_WINDOW", False);
     XmAddWMProtocolCallback(top, wmdelete, menu, (XtPointer) M_EXIT);
+    wmsave = XmInternAtom(dpy, (char *) "WM_SAVE_YOURSELF", False);
+    XmAddWMProtocolCallback(top, wmsave, saveyourself, (XtPointer) 0);
+    icon();
     XSetIOErrorHandler(lost);
     signal(SIGINT, caught);
     signal(SIGTERM, caught);

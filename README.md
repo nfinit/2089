@@ -96,6 +96,22 @@ where the display has them, and in black and white otherwise (`c` switches). The
 are the terminal frontends' (`?` lists them), the best scores are kept in the same
 `~/.2089`, and quitting prints the command that carries on the game.
 
+#### On the CDE desktop
+
+`make install-cde` puts `xm2089` on the CDE desktop as if it came with it: an action
+and icons, so that 2089 is in Application Manager (in a Games group) and saved games
+(`*.2089`) open from File Manager, and a help volume, built with CDE's `dthelptag`, for
+Help > Overview. The game being played is saved with the session when you log out, and
+comes back when you log in. For yourself (in `~/.dt`):
+
+```sh
+make x11 install install-cde PREFIX=$HOME
+```
+
+or for every user, as root: `make x11 install install-cde DTDIR=/etc/dt/appconfig DTLANG=/C`.
+Then choose Reload Actions and Reload Applications in Application Manager's
+Desktop_Tools, or log out and in again.
+
 ## Other C implementations of 2048
 
 There's much prior art inspiring 2089, which is far from the first attempt to implement this game in C, though it is perhaps the first attempt at an explicitly "universal" implementation capable of supporting multiple platforms, interfaces and compilers. A few other projects include:

@@ -1,0 +1,133 @@
+<!-- 2089.htg - the CDE help volume for xm2089, in HelpTag.  Build it with
+     dthelptag 2089 (make install-cde does), which writes 2089.sdl for
+     the help viewer.  Author: Claude Opus 5.5 (claude-opus-5-5), October
+     2026.  MIT License; see LICENSE. -->
+
+<metainfo>
+<title>2089 Help
+<copyright>
+2089 is free software under the MIT License.
+2048 is Gabriele Cirulli's game.
+<abstract>
+Help for 2089, the game of 2048 for the desktop.
+<\metainfo>
+
+<hometopic>2089 Help
+
+2089 is the game of 2048 for the desktop.  Slide the tiles on the
+board; when two tiles with the same number meet, they join into one
+worth both.  Join your way up to a 2048 tile to win, and keep going if
+you like, until no move is left.
+
+<list bullet>
+* <link HowToPlay>How to Play<\link>
+* <link Keys>Keys and Buttons<\link>
+* <link Menus>Menus<\link>
+* <link Colours>Colours<\link>
+* <link SavedGames>Saved Games<\link>
+* <link Starting>Starting 2089 from a Command<\link>
+<\list>
+
+
+<s1 id=HowToPlay>How to Play
+
+The game starts with two tiles on a board of four rows of four.  Each
+move slides every tile as far as it will go in one direction: up,
+down, left or right.  Two tiles with the same number that meet join
+into one, with their sum on it, and your score goes up by that sum.
+After every move that changes the board, a new tile appears, a 2 or
+(one time in ten) a 4.
+
+You win when a tile reaches 2048.  You can play on after that, for as
+long as some move can still change the board.  When none can, the game
+is over.
+
+The best score for each size of board is kept, and shown in the Best
+box.  Scores are kept in the file .2089 in your home folder, which the
+2089 programs for terminals share.
+
+
+<s1 id=Keys>Keys and Buttons
+
+Click the board, then type:
+
+<list bullet>
+* The arrow keys, or <computer>w a s d<\computer>, or
+<computer>k h j l<\computer>, or <computer>8 4 2 6<\computer> on the
+keypad: move.
+* <computer>u<\computer>: undo the last move, if undo is on.
+* <computer>n<\computer>: start a new game.
+* <computer>p<\computer>: show the save string.
+* <computer>c<\computer>: the next colour scheme.
+* <computer>?<\computer>: the keys.
+* <computer>q<\computer>: exit.
+<\list>
+
+Or play with the mouse: click the arrow buttons beside the board to
+move, and New Game and Undo below them.
+
+
+<s1 id=Menus>Menus
+
+<list bullet>
+* File: New Game, Open a saved game, Save As a file, show the Save
+String, and Exit.
+* Edit: Undo the last move.  Undo is on when 2089 is started from the
+desktop, or from a command with <computer>-u<\computer>.
+* Options: the colours of the board.  See <link Colours>Colours<\link>.
+* Help: this help, the keys, help on using help, and about 2089.
+<\list>
+
+
+<s1 id=Colours>Colours
+
+The Options menu has three colour schemes for the board.  The rest of
+the window always takes the desktop's colours.
+
+<list bullet>
+* Game Colours: the colours of the original 2048, from beige to
+orange to gold.
+* Desktop Colours: the colours of your desktop palette.  Choose
+another palette in Style Manager, and the next time 2089 starts, its
+board will follow.
+* Black and White: tiles from outlined to reverse video as they grow,
+for monochrome displays.
+<\list>
+
+
+<s1 id=SavedGames>Saved Games
+
+Choose Save As from the File menu to keep a game in a file.  Its name
+should end in <computer>.2089<\computer>.  Choose Open to play it
+again, or double-click it in File Manager.
+
+A saved game is one line of text, its save string.  Save String in the
+File menu shows the string of the game being played, to copy into a
+note or a mail message.  Paste one in and choose Play to play it.
+
+When you log out, the game being played is saved with your session,
+and comes back when you log in again.
+
+
+<s1 id=Starting>Starting 2089 from a Command
+
+Type <computer>xm2089<\computer> in a terminal, with any of these:
+
+<list bullet>
+* <computer>-u<\computer>: allow undo.
+* <computer>-s<\computer> <emph>size<\emph>: a board from 2 to 8
+squares across.
+* <computer>-r<\computer> <emph>seed<\emph>: the same seed starts the
+same game.
+* <computer>-l<\computer> <emph>savestring<\emph>: play a saved game.
+* <computer>-colours<\computer> <computer>game<\computer>,
+<computer>desktop<\computer> or <computer>mono<\computer>: the colour
+scheme.
+* A file name: open a saved game.
+<\list>
+
+When you exit, 2089 prints the command that carries on the game.
+
+There are 2089 programs for terminals, too: <computer>2089<\computer>,
+which plays full screen or a line at a time on any terminal, and
+<computer>x2089<\computer>, which needs nothing but the X Window System.
