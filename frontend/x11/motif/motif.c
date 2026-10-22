@@ -1534,6 +1534,13 @@ int main(int argc, char **argv)
 
     program = argv[0];
     name = strrchr(argv[0], '/') ? strrchr(argv[0], '/') + 1 : argv[0];
+    /* Alone, -v and -h need no display. */
+    if (argc == 2 && strcmp(argv[1], "-h") == 0)
+        usage(EXIT_SUCCESS);
+    if (argc == 2 && strcmp(argv[1], "-v") == 0) {
+        printf("2089 %s (Motif %d.%d)\n", T89_VERSION, XmVERSION, XmREVISION);
+        return EXIT_SUCCESS;
+    }
     if ((args = (char **) malloc((size_t) (argc + 1) * sizeof *args)) == 0)
         return EXIT_FAILURE;
     memcpy(args, argv, (size_t) (argc + 1) * sizeof *args);
