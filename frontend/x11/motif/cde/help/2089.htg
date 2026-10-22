@@ -72,13 +72,19 @@ and Undo are under the board too.
 <s1 id=Menus>Menus
 
 <list bullet>
-* File: New Game, Open a saved game, Save As a file, show the Save
-String, and Exit.
+* File: New Game, New Game from Number, Open a saved game, Save As a
+file, show the Save String, and Exit.  Every new game has a number,
+shown on the status line: the same number deals the same game, so you
+can play one again, or give its number to a friend.  New Game from
+Number plays one by its number.
 * Edit: Undo the last move.  Undo is on when 2089 is started from the
 desktop, or from a command with <computer>-u<\computer>.
 * View: Arrow Buttons, to play with the mouse.  Start 2089 with
-<computer>-arrows<\computer> to show them from the start.
-* Options: the colours of the board.  See <link Colours>Colours<\link>.
+<computer>-arrows<\computer> to show them from the start.  Best Scores:
+your best score on each size of board, and the top tile in that game.
+* Options: Board Size, from 3 by 3 to 8 by 8, which starts a new game
+(asking first if one is under way); and the colours of the board.  See
+<link Colours>Colours<\link>.
 * Help: this help, the keys, help on using help, and about 2089.
 <\list>
 
@@ -90,7 +96,10 @@ the window always takes the desktop's colours.
 
 <list bullet>
 * Game Colours: the colours of the original 2048, from beige to
-orange to gold.
+orange to gold; then, past 2048, greens, blues and violets.  Turn off
+Extended Colours to have every tile past 2048 in the original's one
+dark colour instead, which also leaves those colours to other programs
+on a display that has few.
 * Desktop Colours: the colours of your desktop palette.  Choose
 another palette in Style Manager, and the next time 2089 starts, its
 board will follow.
@@ -128,6 +137,7 @@ same game.
 * <computer>-colours<\computer> <computer>game<\computer>,
 <computer>desktop<\computer> or <computer>mono<\computer>: the colour
 scheme.
+* <computer>+extended<\computer>: Extended Colours off.
 * A file name: open a saved game.
 <\list>
 

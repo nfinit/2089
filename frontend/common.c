@@ -255,6 +255,11 @@ unsigned long f89_btop(int size)
     return size >= T89_MINSIZE && size <= T89_MAXSIZE ? recscore[size] : 0;
 }
 
+const char *f89_brec(int size)
+{
+    return f89_btop(size) > 0 ? record[size] : "";
+}
+
 int f89_bsave(void)
 {
     FILE *f;

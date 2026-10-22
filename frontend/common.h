@@ -133,11 +133,13 @@ int f89_start(struct t89_game *g, const struct f89_options *o, const char *name)
  * the one for its size; f89_btop is the record for a size; f89_bsave writes
  * the records if any changed (merging what another 2089 may have written
  * since), returning -1 if the file can't be written; f89_bfile is its name,
- * "" if there is none.
+ * "" if there is none.  f89_brec is the record game for a size, as a save
+ * string ("" if none).
  */
 void f89_bopen(void);
 void f89_bnote(const struct t89_game *g);
 unsigned long f89_btop(int size);
+const char *f89_brec(int size);
 int f89_bsave(void);
 const char *f89_bfile(void);
 

@@ -5,9 +5,10 @@
  * as a Motif application of the CDE years, after the CDE and Motif style
  * guides and the desktop's own tools (dtcalc, dtpad):
  *
- *   - a menu bar: File (New Game, Open, Save As, Save String, Exit), Edit
- *     (Undo), View (Arrow Buttons), Options (Game Colours, Desktop Colours,
- *     Black and White) and Help (Overview, Keys, Using Help, About);
+ *   - a menu bar: File (New Game, New Game from Number, Open, Save As,
+ *     Save String, Exit), Edit (Undo), View (Arrow Buttons, Best Scores),
+ *     Options (Board Size, Game Colours, Desktop Colours, Black and White,
+ *     Extended Colours) and Help (Overview, Keys, Using Help, About);
  *   - the score, best score and moves in a row of sunken fields;
  *   - the board filling a sunken frame, its tiles raised with Motif bevels
  *     (the shadows Motif works out for each tile's colour) and empty cells
@@ -17,16 +18,18 @@
  *     window behind others brings it forward and moves at once;
  *   - a status line along the bottom.
  *
- * Three colour schemes: the original game's tile colours (the default),
- * the desktop's own palette (under CDE: from the colour server, so the
- * board follows the palette chosen in Style Manager), and black and white,
- * which is all a monochrome display gets.  Widgets take the desktop's
- * colours and fonts in all three.
+ * Three colour schemes: the game's tile colours (the default: the
+ * original's, and past 2048 ours unless Extended Colours is off), the
+ * desktop's own palette (under CDE: from the colour server, so the board
+ * follows the palette chosen in Style Manager), and black and white, which
+ * is all a monochrome display gets.  Widgets take the desktop's colours
+ * and fonts in all three.
  *
  * The keys are the other frontends' (arrows, w a s d, h j k l, 8 4 2 6, u
- * n p c q ?), typed on the board.  Undo is off unless -u (or the resource
- * undo: true).  Saved games are files holding a save string, as 2089 -l
- * takes.  Quitting prints the command that carries on the game, and the
+ * n p c q ?), typed on the board.  Each new game has a number (its seed,
+ * as 2089 -r takes), shown on the status line.  Undo is off unless -u (or
+ * the resource undo: true).  Saved games are files holding a save string,
+ * as 2089 -l takes.  Quitting prints the command that carries on the game, and the
  * best scores are kept in ~/.2089.
  *
  * Xt takes the usual X options (-display, -geometry, -xrm, ...); resources
@@ -74,7 +77,10 @@ static XtAppContext app;
 static Widget top, board, message, score[3];
 static Widget undoitem, undobutton, schemeitem[3], arrowsitem, pad;
 static Widget menubar, scorelabel[3], work, controls, newbutton;
-static Widget asknew, showsave, opendialog, savedialog, keys, about;
+static Widget sizeitem[T89_MAXSIZE + 1], extitem;
+static Widget asknew, showsave, opendialog, savedialog, keys, about, numberdialog;
+static Widget scoresdialog;
+static Widget scoretext[T89_MAXSIZE + 1][3];
 static Display *dpy;
 static Pixmap buf;                      /* what's in the board's window */
 static Dimension width, height;         /* its size */
@@ -85,10 +91,13 @@ static char *program;                   /* argv[0], to restart a session with */
 static struct t89_game game, undo;
 static char command[64];                /* how to restart: program and options */
 static int canundo, over;
+static int newsize;                     /* the size of the next new game */
+static unsigned long number;            /* this game's number (its seed), */
+static int known;                       /* if it was dealt here, not loaded */
 
 /* Application resources, settable as options. */
 struct settings {
-    Boolean undo, mono, arrows;
+    Boolean undo, mono, arrows, extended;
     String colours;                     /* game, desktop or mono */
 };
 static struct settings res;
@@ -100,6 +109,8 @@ static XtResource resources[] = {
       XtOffsetOf(struct settings, mono), XmRImmediate, (XtPointer) False },
     { (char *) "arrows", (char *) "Arrows", XmRBoolean, sizeof(Boolean),
       XtOffsetOf(struct settings, arrows), XmRImmediate, (XtPointer) False },
+    { (char *) "extended", (char *) "Extended", XmRBoolean, sizeof(Boolean),
+      XtOffsetOf(struct settings, extended), XmRImmediate, (XtPointer) True },
     { (char *) "colours", (char *) "Colours", XmRString, sizeof(String),
       XtOffsetOf(struct settings, colours), XmRImmediate, (XtPointer) "game" }
 };
@@ -108,6 +119,8 @@ static XrmOptionDescRec options[] = {
     { (char *) "-u", (char *) "*undo", XrmoptionNoArg, (XtPointer) "true" },
     { (char *) "-mono", (char *) "*mono", XrmoptionNoArg, (XtPointer) "true" },
     { (char *) "-arrows", (char *) "*arrows", XrmoptionNoArg, (XtPointer) "true" },
+    { (char *) "-extended", (char *) "*extended", XrmoptionNoArg, (XtPointer) "true" },
+    { (char *) "+extended", (char *) "*extended", XrmoptionNoArg, (XtPointer) "false" },
     { (char *) "-colours", (char *) "*colours", XrmoptionSepArg, (XtPointer) 0 }
 };
 
@@ -157,8 +170,8 @@ static void bevel(Pixel bg, unsigned long *ts, unsigned long *bs)
     *bs = bottom_shadow;
 }
 
-/* The original game's colours, as xboard allocated them, with bevels, on
-   the window's own background. */
+/* The game's colours, as xboard allocated them (extended past 2048 or
+   not), with bevels, on the window's own background. */
 static void gamecolours(Pixel page)
 {
     struct scheme *s = &schemes[GAME];
@@ -228,6 +241,21 @@ static void desktopcolours(void)
         s->tilebs[i] = set[j].bs;
     }
     s->ok = 1;
+}
+
+/* The game's extended colours past 2048, or the original's one colour. */
+static void extend(int on)
+{
+    struct scheme *s = &schemes[GAME];
+    int i;
+
+    res.extended = (Boolean) (on != 0);
+    XmToggleButtonSetState(extitem, res.extended, False);
+    if (!s->ok)
+        return;
+    x89_extend(&brd, on, s->tile);
+    for (i = X89_BASE; i < X89_TILES; i++)
+        bevel(s->tile[i], &s->tilets[i], &s->tilebs[i]);
 }
 
 /* Draw in a scheme from now on. */
@@ -446,8 +474,9 @@ static void minsize(void)
 
 static void finish(void)
 {
-    sprintf(command, "%s %s%s%s", name, res.undo ? "-u " : "", res.arrows ? "-arrows " : "",
-            scheme == MONO ? "-mono " : scheme == DESKTOP ? "-colours desktop " : "");
+    sprintf(command, "%s %s%s%s%s", name, res.undo ? "-u " : "", res.arrows ? "-arrows " : "",
+            scheme == MONO ? "-mono " : scheme == DESKTOP ? "-colours desktop " : "",
+            res.extended ? "" : "+extended ");
     if (f89_bsave() < 0)
         fprintf(stderr, "%s: can't save the high score in %s\n", name, f89_bfile());
     f89_resume(&game, command);
@@ -482,12 +511,22 @@ static void caught(int sig)
 
 /* ------------------------------------------------------------ the game */
 
+/* Options > Board Size shows the size played (none for 2 x 2). */
+static void showsize(void)
+{
+    int n;
+
+    for (n = 3; n <= T89_MAXSIZE; n++)
+        XmToggleButtonSetState(sizeitem[n], (Boolean) (n == game.size), False);
+}
+
 /* Play this game from now on (new, loaded or opened). */
 static void start(const struct t89_game *g)
 {
     f89_bsave();
     game = *g;
-    canundo = 0;
+    canundo = known = 0;
+    showsize();
     over = t89_over(&game);
     place();                            /* the size may have changed */
     minsize();
@@ -563,28 +602,164 @@ static void title(Widget d, const char *text)
     XtVaSetValues(XtParent(d), XmNtitle, text, (char *) 0);
 }
 
-static void newgame(Widget w, XtPointer client, XtPointer call)
+/* A new game: game number n, of size newsize. */
+static void deal(unsigned long n)
 {
     struct t89_game g;
+    char text[64];
 
+    t89_new(&g, newsize, n);
+    start(&g);
+    number = n;
+    known = 1;
+    sprintf(text, "Game number %lu.", n);
+    if (!over)
+        say(text);
+}
+
+static void newgame(Widget w, XtPointer client, XtPointer call)
+{
     (void) w;
     (void) client;
     (void) call;
-    t89_new(&g, game.size, f89_seed(game.rng));
-    start(&g);
+    deal(f89_seed(game.rng));
 }
 
-static void asknewgame(void)
+/* The question gone: if a new game of another size wasn't started after
+   all, Board Size goes back to the size played. */
+static void unasked(Widget w, XtPointer client, XtPointer call)
 {
+    (void) w;
+    (void) client;
+    (void) call;
+    showsize();
+}
+
+/* A new game of this size: asked first, except for a new size when the
+   game hasn't begun or is over. */
+static void asknewgame(int size)
+{
+    char text[96];
+
+    newsize = size;
+    if (size != game.size && (game.moves == 0 || over)) {
+        deal(f89_seed(game.rng));
+        return;
+    }
     if (!asknew) {
         asknew = XmCreateQuestionDialog(top, (char *) "newGame", (ArgList) 0, 0);
         title(asknew, "2089 - New Game");
-        settext(asknew, XmNmessageString, "Start a new game?\nThis one will be lost.");
         settext(asknew, XmNokLabelString, "New Game");
         only(asknew, 1, 1, 0);
         XtAddCallback(asknew, XmNokCallback, newgame, (XtPointer) 0);
+        XtAddCallback(asknew, XmNunmapCallback, unasked, (XtPointer) 0);
     }
+    if (size == game.size)
+        strcpy(text, "Start a new game?\nThis one will be lost.");
+    else
+        sprintf(text, "Start a new %d x %d game?\nThis one will be lost.", size, size);
+    settext(asknew, XmNmessageString, text);
     XtManageChild(asknew);
+}
+
+/* A game number typed in: 0 to 4294967295 (as 2089 -r takes). */
+static void numbered(Widget w, XtPointer client, XtPointer call)
+{
+    XmSelectionBoxCallbackStruct *cb = (XmSelectionBoxCallbackStruct *) call;
+    char *text = 0, *p;
+    unsigned long n = 0;
+    int ok;
+
+    (void) w;
+    (void) client;
+    if (!XmStringGetLtoR(cb->value, XmFONTLIST_DEFAULT_TAG, &text) || !text)
+        return;
+    for (p = text; *p == ' '; p++)
+        ;
+    ok = *p != '\0';
+    for (; ok && *p >= '0' && *p <= '9'; p++) {
+        ok = n <= (0xFFFFFFFFUL - (unsigned long) (*p - '0')) / 10;
+        n = n * 10 + (unsigned long) (*p - '0');
+    }
+    while (*p == ' ')
+        p++;
+    if (ok && *p == '\0') {
+        newsize = game.size;
+        deal(n);
+    } else
+        say("A game number is 0 to 4294967295.");
+    XtFree(text);
+}
+
+static void asknumber(void)
+{
+    char text[16];
+
+    if (!numberdialog) {
+        numberdialog = XmCreatePromptDialog(top, (char *) "gameNumber", (ArgList) 0, 0);
+        title(numberdialog, "2089 - New Game from Number");
+        settext(numberdialog, XmNselectionLabelString,
+                "Game number (0 to 4294967295): the same number\n"
+                "deals the same game, here or with 2089 -r.");
+        settext(numberdialog, XmNokLabelString, "New Game");
+        XtUnmanageChild(XmSelectionBoxGetChild(numberdialog, XmDIALOG_HELP_BUTTON));
+        XtAddCallback(numberdialog, XmNokCallback, numbered, (XtPointer) 0);
+    }
+    if (known)
+        sprintf(text, "%lu", number);
+    else
+        text[0] = '\0';
+    settext(numberdialog, XmNtextString, text);
+    XtManageChild(numberdialog);
+}
+
+/* Each board size's best score, and the top tile in that game. */
+static void showscores(void)
+{
+    static const char *head[3] = { "Board", "Best", "Top Tile" };
+    struct t89_game g;
+    char text[300];
+    Widget table;
+    int n, i;
+
+    if (!scoresdialog) {
+        scoresdialog = XmCreateInformationDialog(top, (char *) "bestScores", (ArgList) 0, 0);
+        title(scoresdialog, "2089 - Best Scores");
+        only(scoresdialog, 1, 0, 0);
+        table = XtVaCreateManagedWidget("table", xmRowColumnWidgetClass, scoresdialog,
+                                        XmNorientation, XmHORIZONTAL,
+                                        XmNpacking, XmPACK_COLUMN,
+                                        XmNnumColumns, T89_MAXSIZE - T89_MINSIZE + 2,
+                                        XmNentryAlignment, XmALIGNMENT_END,
+                                        XmNspacing, 0, (char *) 0);
+        for (n = T89_MINSIZE - 1; n <= T89_MAXSIZE; n++)
+            for (i = 0; i < 3; i++) {
+                scoretext[n][i] = XtVaCreateManagedWidget("entry", xmLabelWidgetClass, table,
+                                                          XmNmarginWidth, 8,
+                                                          XmNmarginHeight, 1, (char *) 0);
+                if (n < T89_MINSIZE)
+                    label(scoretext[n][i], head[i]);
+            }
+    }
+    for (n = T89_MINSIZE; n <= T89_MAXSIZE; n++) {
+        sprintf(text, "%d x %d", n, n);
+        label(scoretext[n][0], text);
+        if (t89_load(&g, f89_brec(n)) == 0) {
+            sprintf(text, "%lu", f89_btop(n));
+            label(scoretext[n][1], text);
+            f89_tile(text, t89_best(&g));
+            label(scoretext[n][2], text);
+        } else {
+            label(scoretext[n][1], "-");
+            label(scoretext[n][2], "-");
+        }
+    }
+    if (f89_bfile()[0])
+        sprintf(text, "Best scores, kept in %.250s:", f89_bfile());
+    else
+        strcpy(text, "Best scores, for this session only:");
+    settext(scoresdialog, XmNmessageString, text);
+    XtManageChild(scoresdialog);
 }
 
 /* The save string dialog: shows this game's, and plays one typed or pasted. */
@@ -788,7 +963,7 @@ static void input(Widget w, XtPointer client, XtPointer call)
         return;
     switch (cmd = x89_key(&e->xkey)) {
     case F89_QUIT:    quit(); break;
-    case F89_NEW:     asknewgame(); break;
+    case F89_NEW:     asknewgame(game.size); break;
     case F89_UNDO:    doundo(); break;
     case F89_SAVE:    savestring(); break;
     case F89_HELP:    showkeys(); break;
@@ -836,18 +1011,25 @@ static void showarrows(int on)
 }
 
 enum {
-    M_NEW, M_OPEN, M_SAVEAS, M_STRING, M_EXIT, M_UNDO,
-    M_ARROWS, M_GAME, M_DESKTOP, M_MONO, M_OVERVIEW, M_KEYS, M_USING, M_ABOUT,
-    M_UP, M_DOWN, M_LEFT, M_RIGHT
+    M_NEW, M_NUMBER, M_OPEN, M_SAVEAS, M_STRING, M_EXIT, M_UNDO,
+    M_ARROWS, M_SCORES, M_GAME, M_DESKTOP, M_MONO, M_EXTENDED,
+    M_OVERVIEW, M_KEYS, M_USING, M_ABOUT,
+    M_UP, M_DOWN, M_LEFT, M_RIGHT,
+    M_SIZE                              /* M_SIZE + n: an n x n board */
 };
 
 static void menu(Widget w, XtPointer client, XtPointer call)
 {
     int what = (int) (long) client;
 
-    (void) w;
+    if (what >= M_SIZE) {
+        if (((XmToggleButtonCallbackStruct *) call)->set && what - M_SIZE != game.size)
+            asknewgame(what - M_SIZE);
+        return;
+    }
     switch (what) {
-    case M_NEW:    asknewgame(); break;
+    case M_NEW:    asknewgame(game.size); break;
+    case M_NUMBER: asknumber(); break;
     case M_OPEN:   filedialog(0); break;
     case M_SAVEAS: filedialog(1); break;
     case M_STRING: savestring(); break;
@@ -856,13 +1038,21 @@ static void menu(Widget w, XtPointer client, XtPointer call)
     case M_ARROWS:
         showarrows(((XmToggleButtonCallbackStruct *) call)->set);
         break;
+    case M_SCORES: showscores(); break;
     case M_GAME:
     case M_DESKTOP:
-    case M_MONO:
+    case M_MONO:                        /* one of three, the menu being mixed */
         if (((XmToggleButtonCallbackStruct *) call)->set) {
             usescheme(what - M_GAME);
             draw();
-        }
+        } else
+            XmToggleButtonSetState(w, True, False);
+        break;
+    case M_EXTENDED:
+        extend(((XmToggleButtonCallbackStruct *) call)->set);
+        if (scheme == GAME)
+            usescheme(GAME);
+        draw();
         break;
     case M_OVERVIEW: helpvolume("2089"); break;
     case M_KEYS:   showkeys(); break;
@@ -918,10 +1108,13 @@ static void separator(Widget m)
 static Widget menus(Widget parent)
 {
     Widget bar = XmCreateMenuBar(parent, (char *) "menuBar", (ArgList) 0, 0);
-    Widget m, cascade;
+    Widget m, cascade, sizes;
+    char text[8];
+    int n;
 
     m = pulldown(bar, "File", 'F', &cascade);
     item(m, "New Game...", 'N', "n", M_NEW, 0);
+    item(m, "New Game from Number...", 'u', 0, M_NUMBER, 0);
     item(m, "Open...", 'O', 0, M_OPEN, 0);
     separator(m);
     item(m, "Save As...", 'A', 0, M_SAVEAS, 0);
@@ -934,12 +1127,24 @@ static Widget menus(Widget parent)
 
     m = pulldown(bar, "View", 'V', &cascade);
     arrowsitem = item(m, "Arrow Buttons", 'A', 0, M_ARROWS, CHECK);
+    separator(m);
+    item(m, "Best Scores...", 'B', 0, M_SCORES, 0);
 
     m = pulldown(bar, "Options", 'O', &cascade);
-    XtVaSetValues(m, XmNradioBehavior, True, (char *) 0);
+    sizes = XmCreatePulldownMenu(m, (char *) "boardSize", (ArgList) 0, 0);
+    XtVaSetValues(sizes, XmNradioBehavior, True, (char *) 0);
+    XtVaCreateManagedWidget("Board Size", xmCascadeButtonWidgetClass, m,
+                            XmNsubMenuId, sizes, XmNmnemonic, (KeySym) 'S', (char *) 0);
+    for (n = 3; n <= T89_MAXSIZE; n++) {
+        sprintf(text, "%d x %d", n, n);
+        sizeitem[n] = item(sizes, text, '0' + n, 0, M_SIZE + n, 1);
+    }
+    separator(m);
     schemeitem[GAME] = item(m, "Game Colours", 'G', "c", M_GAME, 1);
     schemeitem[DESKTOP] = item(m, "Desktop Colours", 'D', "c", M_DESKTOP, 1);
     schemeitem[MONO] = item(m, "Black and White", 'B', "c", M_MONO, 1);
+    separator(m);
+    extitem = item(m, "Extended Colours", 'E', 0, M_EXTENDED, CHECK);
 
     m = pulldown(bar, "Help", 'H', &cascade);
     item(m, "Overview...", 'v', 0, M_OVERVIEW, 0);
@@ -1114,6 +1319,8 @@ static void saveyourself(Widget w, XtPointer client, XtPointer call)
         argv[argc++] = (char *) "-u";
     if (res.arrows)
         argv[argc++] = (char *) "-arrows";
+    if (!res.extended)
+        argv[argc++] = (char *) "+extended";
     if (scheme != GAME) {
         argv[argc++] = (char *) "-colours";
         argv[argc++] = (char *) (scheme == MONO ? "mono" : "desktop");
@@ -1140,12 +1347,14 @@ static void icon(void)
 
 static void usage(int status)
 {
-    printf("usage: %s [X options] [-mono] [-colours game|desktop|mono] [-arrows] [-u]\n", name);
-    puts("              [-s size] [-r seed] [-l savestring] [-v] [-h] [file]");
+    printf("usage: %s [X options] [-mono] [-colours game|desktop|mono] [+extended]\n", name);
+    puts("              [-arrows] [-u] [-s size] [-r seed] [-l savestring] [-v] [-h] [file]");
     puts("  X options      -display, -geometry, -xrm and the rest");
     puts("  -colours       the board's colours: the game's (the default), the");
     puts("                 desktop palette's (under CDE), or black and white");
     puts("  -mono          black and white, even on a colour display");
+    puts("  +extended      tiles past 2048 in the original's one colour, not ours");
+    puts("                 (Options > Extended Colours; -extended for ours)");
     puts("  -arrows        show the arrow buttons (View > Arrow Buttons)");
     f89_usage();
     puts("  -v             print the version");
@@ -1198,12 +1407,17 @@ int main(int argc, char **argv)
         game = g;
     } else if (f89_start(&game, &o, name) < 0)
         return EXIT_FAILURE;
+    else if (!o.load) {
+        number = o.seed;
+        known = 1;
+    }
 
     if (x89_open(&brd, dpy, DefaultScreen(dpy), RootWindow(dpy, DefaultScreen(dpy))) < 0) {
         fprintf(stderr, "%s: the server has no fonts I can use (not even fixed)\n", name);
         return EXIT_FAILURE;
     }
     brd.tight = 1;
+    x89_extend(&brd, res.extended, brd.tile);
 
     mainw = XtVaCreateManagedWidget("main", xmMainWindowWidgetClass, top, (char *) 0);
     layout(mainw);
@@ -1213,6 +1427,9 @@ int main(int argc, char **argv)
     desktopcolours();
     for (i = 0; i < 2; i++)
         XtSetSensitive(schemeitem[i], (Boolean) schemes[i].ok);
+    XtSetSensitive(extitem, (Boolean) schemes[GAME].ok);
+    XmToggleButtonSetState(extitem, res.extended, False);
+    showsize();
     showarrows(res.arrows);
     usescheme(res.mono || strcmp(res.colours, "mono") == 0 ? MONO
               : strcmp(res.colours, "desktop") == 0 ? DESKTOP : GAME);
@@ -1234,7 +1451,10 @@ int main(int argc, char **argv)
     over = t89_over(&game);
     if (over)
         nomoves();
-    else
+    else if (known) {
+        sprintf(why, "Game number %lu.", number);
+        say(why);
+    } else
         say("");
     XtRealizeWidget(top);
     resize();

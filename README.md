@@ -69,9 +69,11 @@ board code in `frontend/x11`:
 - `xm2089` (`frontend/x11/motif`) is a Motif application in the style of the CDE desktop's
   own tools, as compact as they are: menus, the scores in sunken fields, tiles raised
   with Motif bevels, optional arrow buttons to play with the mouse (View > Arrow
-  Buttons, or `-arrows`), a status line, and dialogs to start a new game, open
-  and save games as files and copy or paste save strings. Its tiles can take the colours
-  of the CDE palette, following Style Manager (`-colours desktop`).
+  Buttons, or `-arrows`), a status line, and dialogs to start a new game (of another
+  size, or by its number), open and save games as files, copy or paste save strings and
+  see the best score for each size. Its tiles can take the colours of the CDE palette,
+  following Style Manager (`-colours desktop`); past 2048, Options > Extended Colours
+  (on unless `+extended`) can be turned off for the original's one dark colour.
 
 ```sh
 make x11                    # x2089, and xm2089 if Motif can be found
@@ -92,9 +94,11 @@ cd frontend/x11/xlib && xmkmf && make       # x2089 alone, without Motif
 Both take the usual X options (`-display`, `-geometry`; `x2089` also `-fn` for its text
 font, `xm2089` everything Xt takes) and `-mono`, besides `-u`, `-s`, `-r` and `-l`. As
 resources: `x2089.geometry`, `x2089.font`, `x2089.mono: true`; `XM2089*undo: true`,
-`XM2089*colours: game`, `desktop` or `mono`. Windows can be resized. They play in the original game's colours
-where the display has them, and in black and white otherwise (`c` switches). The keys
-are the terminal frontends' (`?` lists them), the best scores are kept in the same
+`XM2089*colours: game`, `desktop` or `mono`, `XM2089*extended: false`. Windows can be
+resized. They play in the original game's colours where the display has them (past
+2048, greens as in the later mobile versions, then blues and violets of our own), and in
+black and white otherwise (`c` switches). The keys are the terminal frontends' (`?`
+lists them), the best scores are kept in the same
 `~/.2089`, and quitting prints the command that carries on the game.
 
 #### On the CDE desktop
