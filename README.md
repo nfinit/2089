@@ -11,7 +11,23 @@ Gabriele Cirulli's [2048](https://github.com/gabrielecirulli/2048) is a famously
 - Basic mono/color X11 GUI
 - Mono/color X11/Motif 2.x GUI with optional CDE integration
 
-Testing for TUI clients performed on both Linux and AIX 4.3 with Ericom Powerterm 525 clients, X11 clients thus far tested on AIX 4.3 only.
+Testing for TUI clients performed on both Linux and AIX 4.3 with Ericom PowerTerm 525 clients, X11 clients thus far tested on AIX 4.3 only.
+
+## Binary distribution for AIX
+
+Each [release](https://github.com/nfinit/2089/releases) comes with a ready-built
+tarball for AIX 4.3.3 on PowerPC, with all three programs, their manual pages and the
+CDE files. It needs nothing beyond the base system (curses, X11 and Motif):
+
+```sh
+zcat 2089-1.0.0-aix4.3.3-ppc.tar.Z | tar -xf -
+cd 2089-1.0.0-aix4.3.3-ppc
+./install.sh -c             # to /usr/local, and onto the CDE desktop
+```
+
+Run as root, `install.sh` installs for every user; otherwise, give it a place of your
+own with `-p $HOME`, and `-c` puts 2089 on your own desktop (in `~/.dt`). `-n` shows
+what it would do without doing it. On other systems, build from source.
 
 ## Build requirements
 
