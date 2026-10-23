@@ -3,9 +3,15 @@
 
 ![2089 on the CDE desktop of AIX 4.3.3: the curses and line-mode frontends in dtterm, xm2089, and 2089 in Application Manager](doc/cde-desktop.png)
 
-2089 is a port of [2048](https://github.com/gabrielecirulli/2048) to standard C89 with a modular architecture that allows a core engine (`2089.c`) to support multiple frontends, such that it can be easily ported to a wide variety of systems and interfaces.
+Gabriele Cirulli's [2048](https://github.com/gabrielecirulli/2048) is a famously addictive, simple game with many adaptations and ports across different platforms. **2089** is yet another one of these projects, but unlike most others, the goal from the start is to run on _anything_. 2089's modular architecture supports all kinds of potential "frontends" to a shared core engine, from line-mode terminal adaptations running on hardcopy teletypes to server-side CGI interfaces, all written in standard C89 for maximum portability.
 
-2089 is currently developed and tested on Linux (with GCC) and AIX 4.3.3 (with XL C,) with legacy terminal support tested using Ericom's PowerTerm 525 on Windows NT.
+## Bundled frontends
+- VT52+ `curses` TUI with up to 256-color support
+- Universal line-mode TUI for dumb/unsupported terminals and teletypes
+- Basic mono/color X11 GUI
+- Mono/color X11/Motif 2.x GUI with optional CDE integration
+
+Testing for TUI clients performed on both Linux and AIX 4.3 with Ericom Powerterm 525 clients, X11 clients thus far tested on AIX 4.3 only.
 
 ## Build requirements
 
